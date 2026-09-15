@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck · Lint · Unit · Contrast
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: clover
+          POSTGRES_PASSWORD: clover_ci
+          POSTGRES_DB: clover_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U clover" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://clover:clover_ci@localhost:5432/clover_test
+      APP_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: ci-only-secret-not-for-production-0123456789
+      CLOVER_ENCRYPTION_KEYS: "v1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+      CLOVER_DEMO_MODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma generate
+      - run: pnpm exec prisma migrate deploy
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm check:contrast
+      - run: pnpm exec next build
+
+  e2e:
+    name: End-to-end (Demo mode)
+    runs-on: ubuntu-latest
+    needs: check
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: clover
+          POSTGRES_PASSWORD: clover_ci
+          POSTGRES_DB: clover_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U clover" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://clover:clover_ci@localhost:5432/clover_e2e
+      APP_URL: http://127.0.0.1:3100
+      BETTER_AUTH_SECRET: ci-only-secret-not-for-production-0123456789
+      CLOVER_ENCRYPTION_KEYS: "v1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+      CLOVER_DEMO_MODE: "1"
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma generate
+      - run: pnpm exec prisma migrate deploy
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: playwright-report, path: playwright-report, retention-days: 7 }
