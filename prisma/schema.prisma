@@ -1,0 +1,689 @@
+// Clover data model. See docs/architecture/README.md §5 for the narrative.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Auth (better-auth) ─────────────────────────────
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  preferences   UserPreferences?
+  items         Item[]
+  connections   MarketplaceConnection[]
+  jobs          Job[]
+  offers        Offer[]
+  rules         AutomationRule[]
+  recommendations Recommendation[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  copilotThreads CopilotThread[]
+  publications  Publication[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ───────────────────────────── Preferences ─────────────────────────────
+
+enum PricingStrategy {
+  QUICK_SALE
+  BALANCED
+  MAX_VALUE
+}
+
+enum Theme {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+model UserPreferences {
+  userId              String   @id
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  onboardingStep      Int      @default(0)
+  onboardingComplete  Boolean  @default(false)
+  city                String?
+  region              String?
+  postalCode          String?
+  country             String   @default("US")
+  currency            String   @default("USD")
+  offersLocalPickup   Boolean  @default(true)
+  offersShipping      Boolean  @default(true)
+  defaultShippingNote String?
+  pricingStrategy     PricingStrategy @default(BALANCED)
+  defaultMarketplaces String[] @default(["EBAY", "FACEBOOK", "OFFERUP", "NEXTDOOR"])
+  notifyOffers        Boolean  @default(true)
+  notifyStale         Boolean  @default(true)
+  notifyPublishing    Boolean  @default(true)
+  notifyEmail         Boolean  @default(false)
+  theme               Theme    @default(SYSTEM)
+  reducedMotion       Boolean  @default(false)
+  expertMode          Boolean  @default(false)
+  updatedAt           DateTime @updatedAt
+}
+
+// ───────────────────────────── Inventory ─────────────────────────────
+
+enum ItemStatus {
+  DRAFT
+  ANALYZING
+  READY
+  LISTED
+  OFFER_RECEIVED
+  SOLD
+  SHIPPED
+  COMPLETED
+  ARCHIVED
+}
+
+enum ConditionGrade {
+  NEW_SEALED
+  NEW_OPEN_BOX
+  LIKE_NEW
+  VERY_GOOD
+  GOOD
+  FAIR
+  FOR_PARTS
+}
+
+model Item {
+  id               String      @id @default(cuid())
+  userId           String
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sku              String
+  title            String      @default("Untitled item")
+  status           ItemStatus  @default(DRAFT)
+  brand            String?
+  model            String?
+  categoryPath     String[]    @default([])
+  attributes       Json        @default("{}")
+  conditionGrade   ConditionGrade?
+  conditionNotes   String?
+  // Money in minor units (cents) to avoid float drift
+  acquisitionCost  Int?
+  estimatedValue   Int?
+  listPrice        Int?
+  floorPrice       Int?
+  soldPrice        Int?
+  fees             Int?
+  shippingCost     Int?
+  soldMarketplace  Marketplace?
+  storageLocation  String?
+  notes            String?
+  quantity         Int         @default(1)
+  acquiredAt       DateTime?
+  listedAt         DateTime?
+  soldAt           DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  photos           Photo[]
+  profile          ItemProfile?
+  comps            Comp[]
+  estimate         PriceEstimate?
+  drafts           ListingDraft[]
+  publications     Publication[]
+  offers           Offer[]
+  jobs             Job[]
+  recommendations  Recommendation[]
+
+  @@unique([userId, sku])
+  @@index([userId, status])
+  @@index([userId, updatedAt])
+}
+
+enum PhotoKind {
+  ORIGINAL
+  ENHANCED
+  STUDIO
+  CONDITION
+}
+
+enum StudioMode {
+  CLEAN_STUDIO
+  LUXURY
+  LIFESTYLE
+  ECOMMERCE
+  MARKETPLACE
+  SOCIAL
+  DETAIL
+  CONDITION
+}
+
+model Photo {
+  id             String     @id @default(cuid())
+  itemId         String
+  item           Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  kind           PhotoKind  @default(ORIGINAL)
+  storageKey     String
+  thumbKey       String?
+  mimeType       String     @default("image/jpeg")
+  width          Int
+  height         Int
+  bytes          Int
+  sortOrder      Int        @default(0)
+  aiGenerated    Boolean    @default(false)
+  studioMode     StudioMode?
+  sourcePhotoId  String?
+  source         Photo?     @relation("PhotoDerivation", fields: [sourcePhotoId], references: [id], onDelete: SetNull)
+  derived        Photo[]    @relation("PhotoDerivation")
+  label          String?
+  provenance     Json?
+  createdAt      DateTime   @default(now())
+
+  @@index([itemId, sortOrder])
+}
+
+// ───────────────────────────── AI artifacts ─────────────────────────────
+
+enum ConfidenceTier {
+  CONFIDENT
+  LIKELY
+  NEEDS_CHECK
+}
+
+model ItemProfile {
+  itemId        String   @id
+  item          Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  // Full typed artifact (see src/lib/ai/schemas.ts → ItemProfileSchema)
+  data          Json
+  identityConfidence  Float
+  conditionConfidence Float
+  provider      String
+  model         String
+  promptVersion String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum CompSource {
+  EBAY_BROWSE
+  EBAY_INSIGHTS
+  USER_REPORTED
+  DEMO
+}
+
+model Comp {
+  id               String     @id @default(cuid())
+  itemId           String
+  item             Item       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  source           CompSource
+  externalId       String?
+  title            String
+  url              String?
+  imageUrl         String?
+  price            Int
+  shipping         Int        @default(0)
+  currency         String     @default("USD")
+  condition        String?
+  conditionGrade   ConditionGrade?
+  buyingOption     String?
+  listedAt         DateTime?
+  soldAt           DateTime?
+  similarity       Float      @default(0)
+  included         Boolean    @default(true)
+  exclusionReason  String?
+  isMarketEvidence Boolean    @default(false)
+  raw              Json?
+  createdAt        DateTime   @default(now())
+
+  @@index([itemId])
+}
+
+enum EstimateBasis {
+  MARKET_EVIDENCE
+  AI_ESTIMATE
+}
+
+model PriceEstimate {
+  itemId          String        @id
+  item            Item          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  basis           EstimateBasis
+  confidence      ConfidenceTier
+  quickSale       Int
+  recommended     Int
+  maxValue        Int
+  low             Int
+  likely          Int
+  high            Int
+  compsUsed       Int
+  effectiveSample Float
+  method          Json
+  explanation     String
+  netByMarketplace Json
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+// ───────────────────────────── Listings ─────────────────────────────
+
+enum Marketplace {
+  EBAY
+  FACEBOOK
+  OFFERUP
+  NEXTDOOR
+  CRAIGSLIST
+  MERCARI
+  POSHMARK
+}
+
+model ListingDraft {
+  id             String       @id @default(cuid())
+  itemId         String
+  item           Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  marketplace    Marketplace? // null = generic master draft
+  title          String
+  description    String
+  bullets        String[]     @default([])
+  conditionText  String       @default("")
+  specifics      Json         @default("[]")
+  keywords       String[]     @default([])
+  categoryPath   String[]     @default([])
+  categoryId     String?
+  price          Int?
+  shipping       Json         @default("{}")
+  version        Int          @default(1)
+  generatedBy    String       @default("user")
+  selfCheck      Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  versions       ListingDraftVersion[]
+
+  @@unique([itemId, marketplace])
+}
+
+model ListingDraftVersion {
+  id          String       @id @default(cuid())
+  draftId     String
+  draft       ListingDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  version     Int
+  snapshot    Json
+  reason      String
+  createdAt   DateTime     @default(now())
+
+  @@index([draftId, version])
+}
+
+// ───────────────────────────── Marketplace connections & publications ─────────────────────────────
+
+enum ConnectionStatus {
+  NOT_CONNECTED
+  CONNECTED
+  NEEDS_REAUTH
+  ERROR
+}
+
+model MarketplaceConnection {
+  id                  String           @id @default(cuid())
+  userId              String
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marketplace         Marketplace
+  status              ConnectionStatus @default(NOT_CONNECTED)
+  mode                String           @default("api") // api | assisted | demo
+  externalAccountId   String?
+  externalAccountName String?
+  scopes              String[]         @default([])
+  // Encrypted with src/lib/crypto (AES-256-GCM, versioned key)
+  refreshTokenEnc     String?
+  accessTokenEnc      String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  metadata            Json             @default("{}")
+  lastSyncAt          DateTime?
+  lastError           String?
+  connectedAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  publications        Publication[]
+
+  @@unique([userId, marketplace])
+}
+
+enum PublicationMode {
+  API
+  ASSISTED
+}
+
+enum PublicationStatus {
+  READY
+  NEEDS_ATTENTION
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  REQUIRES_USER_ACTION
+  ENDED
+  SOLD
+}
+
+model Publication {
+  id             String            @id @default(cuid())
+  itemId         String
+  item           Item              @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectionId   String?
+  connection     MarketplaceConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  marketplace    Marketplace
+  mode           PublicationMode
+  status         PublicationStatus @default(READY)
+  price          Int?
+  externalId     String?
+  externalUrl    String?
+  externalMeta   Json              @default("{}")
+  checklist      Json              @default("[]")
+  feePreview     Json?
+  attention      Json?             // { code, message, recovery }
+  lastError      String?
+  publishedAt    DateTime?
+  endedAt        DateTime?
+  lastSyncAt     DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  offers         Offer[]
+
+  @@unique([itemId, marketplace])
+  @@index([userId, status])
+}
+
+// ───────────────────────────── Offers ─────────────────────────────
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  COUNTERED
+  EXPIRED
+  WITHDRAWN
+}
+
+model Offer {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId          String
+  item            Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  publicationId   String?
+  publication     Publication? @relation(fields: [publicationId], references: [id], onDelete: SetNull)
+  marketplace     Marketplace
+  externalId      String?
+  buyerName       String
+  buyerId         String?
+  amount          Int
+  originalPrice   Int
+  message         String?
+  status          OfferStatus  @default(PENDING)
+  counterAmount   Int?
+  responseMessage String?
+  suggestion      Json?
+  receivedAt      DateTime     @default(now())
+  expiresAt       DateTime?
+  respondedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([userId, status])
+  @@index([itemId])
+}
+
+// ───────────────────────────── Automations ─────────────────────────────
+
+enum AutomationType {
+  REPRICE_STALE
+  STALE_LISTING
+  PHOTO_QUALITY
+  TITLE_QUALITY
+  OFFER_ALERT
+  SOLD_SYNC
+  DOUBLE_SELL_GUARD
+  SHIPPING_PREP
+  PENDING_ACTION_REMINDER
+}
+
+enum AutomationMode {
+  OFF
+  SUGGEST
+  ASK
+  AUTO
+}
+
+model AutomationRule {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      AutomationType
+  mode      AutomationMode @default(SUGGEST)
+  config    Json           @default("{}")
+  updatedAt DateTime       @updatedAt
+
+  @@unique([userId, type])
+}
+
+enum RecommendationStatus {
+  OPEN
+  APPLIED
+  DISMISSED
+  SNOOZED
+}
+
+model Recommendation {
+  id          String               @id @default(cuid())
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        Item?                @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type        AutomationType
+  title       String
+  body        String
+  proposal    Json?
+  status      RecommendationStatus @default(OPEN)
+  snoozedUntil DateTime?
+  createdAt   DateTime             @default(now())
+  resolvedAt  DateTime?
+
+  @@index([userId, status])
+}
+
+// ───────────────────────────── Notifications, audit, copilot ─────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String?
+  entityId   String?
+  meta       Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action])
+}
+
+model CopilotThread {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String           @default("New conversation")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  messages  CopilotMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model CopilotMessage {
+  id        String        @id @default(cuid())
+  threadId  String
+  thread    CopilotThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role      String        // user | assistant
+  content   String
+  toolTrace Json?
+  createdAt DateTime      @default(now())
+
+  @@index([threadId, createdAt])
+}
+
+// ───────────────────────────── Jobs ─────────────────────────────
+
+enum JobType {
+  ANALYZE_ITEM
+  STUDIO_RENDER
+  PUBLISH
+  SYNC_MARKETPLACE
+  RUN_AUTOMATIONS
+  EXPORT_DATA
+  DELETE_ACCOUNT
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  type        JobType
+  status      JobStatus @default(QUEUED)
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        Item?     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  payload     Json      @default("{}")
+  steps       Json      @default("[]")
+  result      Json?
+  error       String?
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  runAfter    DateTime  @default(now())
+  lockedAt    DateTime?
+  lockedBy    String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  events      JobEvent[]
+
+  @@index([status, runAfter])
+  @@index([itemId, type])
+  @@index([userId, createdAt])
+}
+
+model JobEvent {
+  id        Int      @id @default(autoincrement())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  seq       Int
+  kind      String   // step_started | step_progress | step_finished | step_failed | job_finished | job_failed | log
+  stepKey   String?
+  message   String
+  data      Json?
+  createdAt DateTime @default(now())
+
+  @@unique([jobId, seq])
+}
+
+// ───────────────────────────── Quotas & rate limits ─────────────────────────────
+
+model ApiQuota {
+  id        String   @id @default(cuid())
+  provider  String
+  day       String   // YYYY-MM-DD (UTC)
+  used      Int      @default(0)
+  limit     Int
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, day])
+}
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(0)
+  resetAt   DateTime
+}
+
+model CompCache {
+  key       String   @id
+  data      Json
+  expiresAt DateTime
+}
