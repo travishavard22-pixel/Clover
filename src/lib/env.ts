@@ -9,10 +9,23 @@ const boolish = z
   .optional()
   .transform((v) => v === "1" || v === "true");
 
+/**
+ * Hosts show a service's domain without a scheme (Railway's own RAILWAY_PUBLIC_DOMAIN is a bare
+ * host), and a bare host is not a URL, so it would fail validation and stop the app at boot.
+ * Accept either form, fall back to the platform's domain, and drop any trailing slash so the
+ * value concatenates cleanly everywhere it is used.
+ */
+function normalizeAppUrl(value: unknown): unknown {
+  const candidate = typeof value === "string" && value.trim() ? value.trim() : process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
+  if (!candidate) return undefined;
+  const absolute = /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
+  return absolute.replace(/\/+$/, "");
+}
+
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().min(1),
-  APP_URL: z.string().url().default("http://localhost:3000"),
+  APP_URL: z.preprocess(normalizeAppUrl, z.string().url().default("http://localhost:3000")),
   BETTER_AUTH_SECRET: z.string().min(16),
   CLOVER_ENCRYPTION_KEYS: z.string().min(1),
   CLOVER_DEMO_MODE: boolish,
