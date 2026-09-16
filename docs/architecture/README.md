@@ -230,7 +230,8 @@ interface and return `REQUIRES_USER_ACTION` with a checklist instead of calling 
   weak-password errors; security headers, CSP and the signed file route; protected APIs refusing
   anonymous calls; seeded demo flows across home, inventory filters, insights tables,
   notifications, sell and welcome; upload → analysis → review through the real job pipeline in
-  Demo mode. A `setup` project signs in once and shares the session.
+  Demo mode; an axe-core scan of every route (WCAG 2.1 AA plus best practices) that fails on
+  serious or critical violations. A `setup` project signs in once and shares the session.
 - **Contrast check script** (`pnpm check:contrast`) over the token file for both themes.
 - **CI** runs typecheck, lint, unit and integration tests, the contrast check and a production
   build, then the end-to-end suite against a Postgres service.

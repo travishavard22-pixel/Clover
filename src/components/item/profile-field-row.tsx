@@ -22,14 +22,14 @@ export type FieldRowProps = {
 export function ProfileFieldRow({ label, field, verified, expert, onSave, onEvidence, photoCount }: FieldRowProps) {
   const hasEvidence = field?.evidenceImage !== null && field?.evidenceImage !== undefined && field.evidenceImage >= 1 && field.evidenceImage <= photoCount;
   return (
-    <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-center" role="row">
-      <dt className="pt-0.5 text-sm text-secondary sm:pt-0" role="rowheader">
+    <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-center">
+      <dt className="pt-0.5 text-sm text-secondary sm:pt-0">
         {label}
       </dt>
-      <dd className="min-w-0 text-sm text-primary" role="cell">
+      <dd className="min-w-0 text-sm text-primary">
         <InlineEdit value={field?.value ?? ""} label={label} placeholder={`Add ${label.toLowerCase()}`} onSave={onSave} displayClassName={cn("-mx-1 px-1 py-0.5", field ? "font-medium" : "")} maxLength={label === "Dimensions" ? 200 : 120} />
       </dd>
-      <dd className="col-start-2 flex flex-wrap items-center gap-1.5 sm:col-start-3" role="cell">
+      <dd className="col-start-2 flex flex-wrap items-center gap-1.5 sm:col-start-3">
         {field ? (
           verified ? (
             <ConfidenceBadge tier="CONFIDENT" score={1} expert={expert} />

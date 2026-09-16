@@ -17,11 +17,9 @@ export function Honesty() {
       </Reveal>
       <dl className="mt-12 grid gap-x-10 gap-y-8 md:grid-cols-2">
         {rules.map(([t, b], i) => (
-          <Reveal key={t} delay={i * 0.06}>
-            <div className="border-t border-border-default pt-4">
-              <dt className="text-base font-semibold">{t}</dt>
-              <dd className="mt-1.5 text-sm text-secondary">{b}</dd>
-            </div>
+          <Reveal key={t} delay={i * 0.06} className="border-t border-border-default pt-4">
+            <dt className="text-base font-semibold">{t}</dt>
+            <dd className="mt-1.5 text-sm text-secondary">{b}</dd>
           </Reveal>
         ))}
       </dl>

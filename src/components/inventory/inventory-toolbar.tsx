@@ -125,8 +125,8 @@ export function InventoryToolbar({ filters, onChange, density, onDensity, result
             value={density}
             onChange={onDensity}
             options={[
-              { value: "comfortable", label: <span className="flex items-center gap-1.5"><LayoutGrid className="size-3.5" aria-hidden /> <span className="hidden sm:inline">Photos</span></span> },
-              { value: "compact", label: <span className="flex items-center gap-1.5"><Rows3 className="size-3.5" aria-hidden /> <span className="hidden sm:inline">Compact</span></span> },
+              { value: "comfortable", label: <span className="flex items-center gap-1.5"><LayoutGrid className="size-3.5" aria-hidden /> <span className="sr-only sm:not-sr-only">Photos</span></span> },
+              { value: "compact", label: <span className="flex items-center gap-1.5"><Rows3 className="size-3.5" aria-hidden /> <span className="sr-only sm:not-sr-only">Compact</span></span> },
             ]}
           />
           <Link href="/sell?intent=find" className={buttonClasses("outline", "sm", "gap-1.5")} title="Photograph an item to find it in your inventory">

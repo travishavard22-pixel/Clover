@@ -95,7 +95,7 @@ export const ItemCard = forwardRef<HTMLElement, ItemCardProps>(function ItemCard
       </div>
       <div className="flex flex-1 flex-col gap-2 p-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-5 text-primary">{item.title}</h3>
+          <h2 className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-5 text-primary">{item.title}</h2>
         </div>
         <div className="flex items-baseline justify-between gap-2">
           <Money cents={price} className={cn("text-base font-semibold", priceIsEstimate && "text-secondary")} compact />

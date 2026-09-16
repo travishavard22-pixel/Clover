@@ -43,7 +43,7 @@
   /* Text */
   --text-primary: var(--n-11);
   --text-secondary: var(--n-8);
-  --text-muted: var(--n-7);
+  --text-muted: oklch(0.52 0.009 90); /* 5.0:1 on surface-base; --n-7 was 4.35:1 */
   --text-inverse: var(--n-0);
   --text-on-accent: oklch(0.985 0.01 152);
 
@@ -56,9 +56,9 @@
   --accent-text: var(--green-5);
 
   /* Semantic */
-  --success: oklch(0.55 0.14 150);
+  --success: oklch(0.50 0.14 150);
   --success-soft: oklch(0.95 0.04 150);
-  --warning: oklch(0.62 0.15 70);
+  --warning: oklch(0.52 0.13 70);
   --warning-soft: oklch(0.96 0.05 80);
   --danger: oklch(0.55 0.19 27);
   --danger-soft: oklch(0.96 0.03 27);

@@ -7,8 +7,9 @@ import type { NetByMarketplace } from "@/lib/pricing/types";
 /** What the seller keeps per marketplace at the selected price, shipped and local. */
 export function NetTable({ net, defaults }: { net: NetByMarketplace; defaults: Marketplace[] }) {
   const rows = (Object.keys(net) as Marketplace[]).sort((a, b) => Number(defaults.includes(b)) - Number(defaults.includes(a)));
+  // The table scrolls sideways on narrow screens, so the region is focusable and named for keyboard users.
   return (
-    <div className="overflow-x-auto hide-scrollbar -mx-1 px-1">
+    <div className="overflow-x-auto hide-scrollbar -mx-1 rounded-xs px-1 outline-none focus-visible:ring-2 focus-visible:ring-accent" role="region" aria-label="Take-home by marketplace" tabIndex={0}>
       <table className="w-full min-w-[22rem] text-sm">
         <caption className="sr-only">Estimated take-home by marketplace at the recommended price</caption>
         <thead>

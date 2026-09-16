@@ -51,7 +51,7 @@ export default async function SellPage() {
             </span>
             <span>
               <span className="display block text-2xl sm:text-3xl">Scan an item</span>
-              <span className="mt-1 block text-sm opacity-85">Point your camera. Front, back, the label, any flaws.</span>
+              <span className="mt-1 block text-sm">Point your camera. Front, back, the label, any flaws.</span>
             </span>
           </Link>
           <Link

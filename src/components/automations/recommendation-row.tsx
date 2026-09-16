@@ -50,7 +50,7 @@ export function RecommendationRow({ rec, approveLabel = "Approve", onChange }: {
             <span className="text-xs text-muted">Snoozed — back <TimeAgo iso={rec.snoozedUntil} mode="until" /></span>
           )}
         </div>
-        <h4 className="mt-1.5 text-sm font-semibold text-primary">{rec.title}</h4>
+        <h3 className="mt-1.5 text-sm font-semibold text-primary">{rec.title}</h3>
         <p className="mt-0.5 text-sm text-secondary">{rec.body}</p>
         <p className="mt-1 text-xs text-muted">
           {rec.itemId ? (

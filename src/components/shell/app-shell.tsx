@@ -44,8 +44,9 @@ export function AppShell({ user, capabilities, unread, children }: { user: Shell
                   <n.icon className="size-[18px]" strokeWidth={1.75} aria-hidden />
                   <span className="flex-1">{n.label}</span>
                   {n.href === "/offers" && unread > 0 && (
-                    <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold tabular text-on-accent" aria-label={`${unread} pending offers`}>
+                    <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold tabular text-on-accent">
                       {unread}
+                      <span className="sr-only"> pending</span>
                     </span>
                   )}
                 </Link>

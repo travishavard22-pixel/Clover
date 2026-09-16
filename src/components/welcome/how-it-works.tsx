@@ -16,8 +16,7 @@ export function HowItWorks() {
         </Reveal>
         <ol className="mt-10 grid gap-6 md:grid-cols-3">
           {steps.map((s, i) => (
-            <Reveal key={s.title} delay={i * 0.08}>
-              <li className="surface-card h-full p-6">
+            <Reveal key={s.title} delay={i * 0.08} as="li" className="surface-card h-full p-6">
                 <div className="flex items-center gap-3">
                   <span className="flex size-10 items-center justify-center rounded-full bg-accent-soft text-accent-text">
                     <s.icon className="size-5" aria-hidden />
@@ -26,7 +25,6 @@ export function HowItWorks() {
                 </div>
                 <h3 className="mt-5 text-xl font-semibold">{s.title}</h3>
                 <p className="mt-2 text-sm text-secondary">{s.body}</p>
-              </li>
             </Reveal>
           ))}
         </ol>

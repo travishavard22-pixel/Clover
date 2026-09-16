@@ -87,7 +87,9 @@ export function ItemHeader({ summary, onTitle, onRefresh, announce }: { summary:
           </Badge>
           {demo && <DemoBadge />}
         </div>
-        <InlineEdit value={item.title === "Untitled item" ? "" : item.title} placeholder="Untitled item — add a title" label="item title" maxLength={200} onSave={onTitle} displayClassName="display text-2xl md:text-3xl text-primary -mx-1 px-1" inputClassName="display text-xl md:text-2xl h-11" />
+        <h1 className="min-w-0">
+          <InlineEdit value={item.title === "Untitled item" ? "" : item.title} placeholder="Untitled item — add a title" label="item title" maxLength={200} onSave={onTitle} displayClassName="display text-2xl md:text-3xl text-primary -mx-1 px-1" inputClassName="display text-xl md:text-2xl h-11" />
+        </h1>
         {analyzing && (
           <p className="mt-2 text-sm text-secondary">
             Analysis is running.{" "}

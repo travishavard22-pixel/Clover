@@ -49,7 +49,7 @@ export function ListingCard({ listing, onChanged, index }: ListingCardProps) {
         {sold && <span className="absolute inset-x-0 bottom-0 bg-scrim px-3 py-1.5 text-xs font-medium text-white">Sold on {marketplace.shortName}</span>}
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-3">
-        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-5 text-primary">{item.title}</h3>
+        <h2 className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-5 text-primary">{item.title}</h2>
         <div className="flex items-baseline justify-between gap-2">
           <Money cents={p.price ?? item.listPrice} className="text-base font-semibold" />
           <span className="text-xs text-muted tabular">{listing.daysLive !== null ? daysLiveLabel(listing.daysLive, p.status) : marketplace.shortName}</span>

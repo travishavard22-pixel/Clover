@@ -82,11 +82,11 @@ export function IdentificationCard({
   };
 
   const addRow = (name: string, hint: string) => (
-    <div key={name} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-x-3 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-center" role="row">
-      <dt className="text-sm text-secondary" role="rowheader">
+    <div key={name} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-x-3 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-center">
+      <dt className="text-sm text-secondary">
         {name}
       </dt>
-      <dd className="min-w-0 sm:col-span-2" role="cell">
+      <dd className="min-w-0 sm:col-span-2">
         {adding === name ? (
           <form
             className="flex flex-wrap items-center gap-2"
@@ -147,18 +147,18 @@ export function IdentificationCard({
 
         {showChooser && <AlternativesChooser profile={p} onPick={onPickAlternative} onConfirmCurrent={() => onEdit("itemName", p.itemName.value)} />}
 
-        <dl className="divide-y divide-border-subtle" role="table" aria-label="Identified attributes">
+        <dl className="divide-y divide-border-subtle" aria-label="Identified attributes">
           {PROFILE_FIELD_KEYS.filter((k): k is Exclude<ProfileFieldKey, "itemName"> => k !== "itemName").map((key) => (
             <ProfileFieldRow key={key} label={PROFILE_FIELD_LABELS[key]} field={p[key]} verified={verified.has(key)} expert={expert} photoCount={photoCount} onEvidence={onEvidence} onSave={(v) => onEdit(key, v)} />
           ))}
-          <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-center" role="row">
-            <dt className="text-sm text-secondary" role="rowheader">
+          <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-center">
+            <dt className="text-sm text-secondary">
               Category
             </dt>
-            <dd className="min-w-0 text-sm" role="cell">
+            <dd className="min-w-0 text-sm">
               <InlineEdit value={p.categoryPath.join(" > ")} label="category" placeholder="Add category" onSave={(v) => onEdit("categoryPath", v)} displayClassName="-mx-1 px-1 py-0.5 font-medium" maxLength={300} renderDisplay={(v) => <span className="break-words">{v}</span>} />
             </dd>
-            <dd className="col-start-2 sm:col-start-3" role="cell">
+            <dd className="col-start-2 sm:col-start-3">
               {verified.has("categoryPath") ? <ConfidenceBadge tier="CONFIDENT" score={1} expert={expert} /> : <ConfidenceBadge tier={p.categoryConfidence >= 0.85 ? "CONFIDENT" : p.categoryConfidence >= 0.6 ? "LIKELY" : "NEEDS_CHECK"} score={p.categoryConfidence} expert={expert} />}
             </dd>
           </div>
@@ -166,8 +166,8 @@ export function IdentificationCard({
             <ProfileFieldRow key={a.name} label={a.name} field={a.field} verified={verified.has(`attribute:${a.name}`)} expert={expert} photoCount={photoCount} onEvidence={onEvidence} onSave={(v) => onEdit(`attribute:${a.name}`, v)} />
           ))}
           {p.unknowns.map((u) => addRow(u, "What a buyer should know"))}
-          <div className="py-2.5" role="row">
-            <dd className="sm:col-span-3" role="cell">
+          <div className="py-2.5">
+            <dd className="sm:col-span-3">
               {adding === "__new__" ? (
                 <form
                   className="flex flex-wrap items-center gap-2"

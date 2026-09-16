@@ -17,6 +17,7 @@ export function AddPhotosTile({ onFiles, remaining, progress, className }: { onF
         multiple
         className="sr-only"
         tabIndex={-1}
+        aria-hidden
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);
           e.target.value = "";

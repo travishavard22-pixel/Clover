@@ -54,14 +54,14 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         {mode === "sign-up" ? (
           <>
             Already have an account?{" "}
-            <Link className="text-accent-text underline-offset-4 hover:underline" href="/sign-in">
+            <Link className="font-medium text-accent-text underline underline-offset-4" href="/sign-in">
               Sign in
             </Link>
           </>
         ) : (
           <>
             New to Clover?{" "}
-            <Link className="text-accent-text underline-offset-4 hover:underline" href="/sign-up">
+            <Link className="font-medium text-accent-text underline underline-offset-4" href="/sign-up">
               Create an account
             </Link>
           </>

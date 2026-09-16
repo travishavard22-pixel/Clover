@@ -60,7 +60,8 @@ Add `ANTHROPIC_API_KEY` for live AI, eBay keys for live publishing, and a studio
   Compiler rule `react-hooks/set-state-in-effect` is a warning (see `eslint.config.mjs`).
 - **End-to-end tests.** Playwright starts `next dev` on `E2E_PORT` (default 3100) in Demo mode,
   seeds the demo account, signs in once in a `setup` project and shares the session with the
-  desktop and mobile projects. Set `PLAYWRIGHT_CHROMIUM_PATH` to use a preinstalled Chromium.
+  desktop and mobile projects. The suite includes an axe-core accessibility scan of every route.
+  Set `PLAYWRIGHT_CHROMIUM_PATH` to use a preinstalled Chromium.
 
 ## Documentation
 

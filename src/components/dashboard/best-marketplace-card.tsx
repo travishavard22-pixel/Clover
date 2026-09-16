@@ -21,7 +21,8 @@ export function BestMarketplaceCard({ m }: { m: DashboardMetrics }) {
       {!rev ? (
         <p className="mt-3 text-sm text-secondary">Once something sells, you&apos;ll see which marketplace earns the most and sells fastest.</p>
       ) : (
-        <dl className="mt-3 space-y-3">
+        <>
+          <dl className="mt-3 space-y-3">
           <div>
             <dt className="text-xs text-muted">By revenue</dt>
             <dd className="mt-0.5 flex items-baseline justify-between gap-2">
@@ -42,8 +43,9 @@ export function BestMarketplaceCard({ m }: { m: DashboardMetrics }) {
               </dd>
             </div>
           )}
+          </dl>
           {m.marketplaces.length > 1 && (
-            <div className="border-t border-border-subtle pt-3">
+            <div className="mt-3 border-t border-border-subtle pt-3">
               <ul className="space-y-1.5">
                 {m.marketplaces.slice(0, 4).map((x) => {
                   const share = m.revenueAll ? x.revenue / m.revenueAll : 0;
@@ -62,7 +64,7 @@ export function BestMarketplaceCard({ m }: { m: DashboardMetrics }) {
               </ul>
             </div>
           )}
-        </dl>
+        </>
       )}
     </section>
   );
