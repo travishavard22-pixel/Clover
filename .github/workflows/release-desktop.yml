@@ -1,0 +1,107 @@
+name: Desktop release
+
+# Builds signed-ready installers for macOS (Apple Silicon and Intel), Windows and Linux with Tauri
+# and attaches them to a draft GitHub release. Trigger by pushing a tag like `desktop-v0.1.0` or
+# from the Actions tab. Pull requests that touch the desktop shell also build (into the rolling
+# `desktop-dev` draft) so a broken shell is caught before it is tagged. Set the repository variable CLOVER_APP_URL to your hosted address first.
+#
+# Auto-update is enabled when the repository variable TAURI_UPDATER_PUBKEY and the secrets
+# TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD exist (docs/runbooks/native-apps.md).
+#
+# Code signing is optional and picked up from secrets when present:
+#   macOS:   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
+#            APPLE_ID, APPLE_PASSWORD (app-specific), APPLE_TEAM_ID  (notarisation)
+#   Windows: WINDOWS_CERTIFICATE, WINDOWS_CERTIFICATE_PASSWORD
+
+on:
+  push:
+    tags: ["desktop-v*"]
+  pull_request:
+    paths: ["apps/desktop/**", ".github/workflows/release-desktop.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# A newer push to the same branch or tag supersedes a running build.
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            args: ""
+          - platform: windows-latest
+            args: ""
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - name: Linux build dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/desktop
+      - name: Signing secrets (exported only when set — an empty value would be treated as a certificate)
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          export_if_set() {
+            if [ -n "${!1}" ]; then
+              { echo "$1<<__CLOVER_EOF__"; printf '%s\n' "${!1}"; echo "__CLOVER_EOF__"; } >> "$GITHUB_ENV"
+              echo "$1: set"
+            fi
+          }
+          for name in TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID WINDOWS_CERTIFICATE WINDOWS_CERTIFICATE_PASSWORD; do
+            export_if_set "$name"
+          done
+      - name: Updater configuration (only when a key pair is configured)
+        id: updater
+        shell: bash
+        env:
+          PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+        run: |
+          if [ -n "$PUBKEY" ]; then
+            CONFIG=$(node -e 'console.log(JSON.stringify({bundle:{createUpdaterArtifacts:true},plugins:{updater:{pubkey:process.env.PUBKEY,endpoints:["https://github.com/"+process.env.GITHUB_REPOSITORY+"/releases/latest/download/latest.json"]}}}))')
+            echo "args=--features updater --config $CONFIG" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLOVER_APP_URL: ${{ vars.CLOVER_APP_URL }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'desktop-dev' }}
+          releaseName: "Clover desktop ${{ github.ref_type == 'tag' && github.ref_name || 'dev build' }}"
+          releaseBody: "Installers for macOS, Windows and Linux. The app loads ${{ vars.CLOVER_APP_URL }}."
+          releaseDraft: true
+          prerelease: ${{ github.ref_type != 'tag' }}
+          args: ${{ matrix.args }} ${{ steps.updater.outputs.args }}

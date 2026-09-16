@@ -23,6 +23,13 @@ const schema = z.object({
   CLOVER_MODEL_CHECK: z.string().default("claude-haiku-4-5"),
   CLOVER_MODEL_COPILOT: z.string().default("claude-opus-5"),
 
+  // Push notifications: Android (and web) through Firebase Cloud Messaging, iOS through APNs directly.
+  FCM_SERVICE_ACCOUNT_JSON: z.string().optional(),
+  APNS_KEY_ID: z.string().optional(),
+  APNS_TEAM_ID: z.string().optional(),
+  APNS_PRIVATE_KEY: z.string().optional(),
+  APNS_BUNDLE_ID: z.string().default("app.clover.mobile"),
+  APNS_ENV: z.enum(["sandbox", "production"]).default("production"),
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default("./storage"),
   S3_BUCKET: z.string().optional(),
@@ -79,6 +86,7 @@ export const capabilities = {
       (env.STUDIO_SEGMENTATION_PROVIDER === "runpod" && !empty(env.RUNPOD_API_KEY) && !empty(env.RUNPOD_SEGMENT_ENDPOINT_ID))),
   barcode: !empty(env.UPCITEMDB_USER_KEY),
   s3: env.STORAGE_DRIVER === "s3",
+  push: !empty(env.FCM_SERVICE_ACCOUNT_JSON) || (!empty(env.APNS_KEY_ID) && !empty(env.APNS_TEAM_ID) && !empty(env.APNS_PRIVATE_KEY)),
 } as const;
 
 export type Capabilities = { [K in keyof typeof capabilities]: boolean };

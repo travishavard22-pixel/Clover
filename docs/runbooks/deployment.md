@@ -1,5 +1,9 @@
 # Deployment runbook
 
+New to hosting? Start with `hosted-setup.md`, which walks through creating the accounts and
+configuring Railway and Cloudflare R2 step by step. This document is the reference for any
+platform.
+
 ## Topology
 
 - **web**: Next.js server (`next start`). Stateless apart from local storage when `STORAGE_DRIVER=local`.

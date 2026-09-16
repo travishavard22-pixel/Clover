@@ -21,6 +21,14 @@ Clover identifies what you're selling, grades its condition, gathers market evid
 
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind 4 design tokens · Prisma 7 + PostgreSQL 16 · better-auth · Anthropic Claude (vision, structured outputs, tool use) · sharp · a Postgres-backed durable job queue with SSE progress.
 
+## Run it hosted, on any device
+
+Clover is meant to run as a hosted service that you open from a browser, the desktop app, or the
+phone apps — not from a terminal. `docs/runbooks/hosted-setup.md` walks through hosting it with
+no prior accounts (about an hour), and `docs/runbooks/native-apps.md` covers the desktop
+(`apps/desktop`, Tauri) and iOS/Android (`apps/mobile`, Capacitor) shells and their release
+workflows. The quick start below is for developing the app itself.
+
 ## Quick start
 
 ```bash
