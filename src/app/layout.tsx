@@ -7,7 +7,8 @@ export const metadata: Metadata = {
   title: { default: "Clover", template: "%s · Clover" },
   description: "Photograph it. It's for sale. Clover turns a photo into a priced, written, photographed listing on every marketplace you use.",
   applicationName: "Clover",
-  icons: { icon: "/brand/clover-mark.svg" },
+  icons: { icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }, { url: "/icons/icon-192.png", sizes: "192x192" }], apple: "/icons/apple-touch-icon.png" },
+  manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Clover", statusBarStyle: "black-translucent" },
 };
 
