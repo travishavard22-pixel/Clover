@@ -1,5 +1,8 @@
 // Dedicated job worker process: `pnpm worker`
-import { registerAllHandlers, startWorker } from "../src/lib/jobs";
+import { loadDotEnv } from "../src/lib/env-file";
+
+loadDotEnv();
+const { registerAllHandlers, startWorker } = await import("../src/lib/jobs");
 
 registerAllHandlers();
 const handle = startWorker({ concurrency: Number(process.env.WORKER_CONCURRENCY ?? 3) });
