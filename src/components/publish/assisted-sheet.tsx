@@ -1,4 +1,5 @@
 "use client";
+import { canShareFiles, shareFile } from "@/lib/native/shell";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, ExternalLink, Share2 } from "lucide-react";
 import { toast } from "sonner";
@@ -62,13 +63,7 @@ export function AssistedSheet(props: AssistedSheetProps) {
   }, [open, isActionFlow, publication.id, publication.status, onChanged]);
 
   useEffect(() => {
-    if (typeof navigator === "undefined" || typeof File === "undefined") return;
-    try {
-      const probe = new File([new Uint8Array([0])], "probe.zip", { type: "application/zip" });
-      setCanShare(!!navigator.canShare && navigator.canShare({ files: [probe] }));
-    } catch {
-      setCanShare(false);
-    }
+    void canShareFiles().then(setCanShare);
   }, []);
 
   const title = isActionFlow ? (attention === "update_price" ? `Change the price on ${marketplaceName}` : `End the ${marketplaceName} listing`) : `Post on ${marketplaceName}`;
@@ -213,11 +208,10 @@ function StepControls({ step, packUrl, canShare, marketplaceShortName, itemTitle
         const res = await fetch(packUrl, { credentials: "same-origin" });
         if (!res.ok) throw new Error("Couldn't build the photo pack.");
         const blob = await res.blob();
-        const file = new File([blob], `${marketplaceShortName.toLowerCase()}-photos.zip`, { type: "application/zip" });
-        await navigator.share({ files: [file], title: `${itemTitle} — photos for ${marketplaceShortName}` });
+        const outcome = await shareFile({ blob, name: `${marketplaceShortName.toLowerCase()}-photos.zip`, title: `${itemTitle} — photos for ${marketplaceShortName}` });
+        if (outcome === "cancelled") return;
         onDone();
       } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
         toast.error(err instanceof Error ? err.message : "Sharing didn't work. Download the pack instead.");
       } finally {
         setSharing(false);
