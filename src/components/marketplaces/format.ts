@@ -13,10 +13,25 @@ export function relativeTime(iso: string | null | undefined, now = Date.now()): 
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function daysLiveLabel(days: number | null): string {
+export function daysLiveLabel(days: number | null, status?: string): string {
   if (days === null) return "";
-  if (days === 0) return "Live today";
-  return `${days} day${days === 1 ? "" : "s"} live`;
+  const span = days === 0 ? "today" : `${days} day${days === 1 ? "" : "s"}`;
+  if (status === "SOLD") return days === 0 ? "Sold today" : `Sold after ${span}`;
+  if (status === "ENDED") return days === 0 ? "Ended today" : `Ended after ${span}`;
+  return days === 0 ? "Live today" : `${span} live`;
+}
+
+/** "in 2 days", "in 3 hours", or "now" for a future timestamp. */
+export function timeUntil(iso: string | null | undefined, now = Date.now()): string {
+  if (!iso) return "";
+  const diff = new Date(iso).getTime() - now;
+  if (diff <= 0) return "now";
+  const m = Math.floor(diff / 60_000);
+  if (m < 60) return `in ${Math.max(1, m)} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `in ${h} hour${h === 1 ? "" : "s"}`;
+  const d = Math.floor(h / 24);
+  return `in ${d} day${d === 1 ? "" : "s"}`;
 }
 
 export function plural(n: number, one: string, many = `${one}s`): string {

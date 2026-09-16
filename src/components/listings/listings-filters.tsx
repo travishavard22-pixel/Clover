@@ -3,7 +3,7 @@ import { LayoutGrid, Rows3, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Segmented, Select } from "@/components/ui/select";
 import type { Marketplace } from "@/lib/db";
-import type { ListingFilters } from "@/lib/marketplaces/listings";
+import type { ListingFilters } from "@/lib/marketplaces/listing-filters";
 import { MARKETPLACE_ORDER } from "@/lib/marketplaces/labels";
 import { MARKETPLACES } from "@/lib/marketplaces/registry";
 

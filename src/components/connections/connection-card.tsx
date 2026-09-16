@@ -78,7 +78,7 @@ export function ConnectionCard({ row, returnTo, onChanged, onSynced, index }: Co
             {row.isDefault && <Badge tone="neutral">Default</Badge>}
           </div>
           <p className="mt-1 text-sm leading-relaxed text-secondary">{row.modeExplanation}</p>
-          {row.note && (
+          {row.note && !row.modeExplanation.includes(row.note) && (
             <p className="mt-1.5 flex items-start gap-1.5 text-xs font-medium text-secondary">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
               {row.note}
@@ -188,7 +188,7 @@ export function ConnectionCard({ row, returnTo, onChanged, onSynced, index }: Co
 }
 
 function statusText(row: ConnectionRow): string {
-  if (!row.connectable) return "No account link needed";
+  if (!row.connectable) return "No sign-in needed";
   switch (row.status) {
     case "CONNECTED":
       return row.mode === "demo" ? "Connected (demo)" : "Connected";

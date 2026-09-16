@@ -51,7 +51,7 @@ export function ListingCard({ listing, onChanged, index }: ListingCardProps) {
         <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-5 text-primary">{item.title}</h3>
         <div className="flex items-baseline justify-between gap-2">
           <Money cents={p.price ?? item.listPrice} className="text-base font-semibold" />
-          <span className="text-xs text-muted tabular">{listing.daysLive !== null ? daysLiveLabel(listing.daysLive) : marketplace.shortName}</span>
+          <span className="text-xs text-muted tabular">{listing.daysLive !== null ? daysLiveLabel(listing.daysLive, p.status) : marketplace.shortName}</span>
         </div>
         {p.attention && needsYou && <p className="text-xs text-warning">{p.attention.message}</p>}
         {p.status === "FAILED" && p.lastError && <p className="line-clamp-2 text-xs text-danger">{p.lastError}</p>}

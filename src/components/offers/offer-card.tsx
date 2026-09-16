@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Badge, DemoBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Money } from "@/components/ui/money";
-import { relativeTime, signedPct } from "@/components/marketplaces/format";
+import { relativeTime, signedPct, timeUntil } from "@/components/marketplaces/format";
 import { MonogramTile } from "@/components/marketplaces/monogram-tile";
 import type { OfferDTO, OfferSuggestion } from "@/lib/offers";
 import { MARKETPLACES } from "@/lib/marketplaces/registry";
@@ -104,7 +104,7 @@ export function OfferCard({ offer, onChanged, focused, index }: OfferCardProps) 
               </h3>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-secondary">
                 <span className="inline-flex items-center gap-1.5">
-                  <MonogramTile shortName={offer.marketplaceShortName} name={offer.marketplaceName} color={offer.marketplaceColor} size="sm" className="!size-5 !text-[10px]" />
+                  <MonogramTile shortName={offer.marketplaceShortName} name={offer.marketplaceName} color={offer.marketplaceColor} size="sm" />
                   {offer.marketplaceShortName}
                 </span>
                 <span>·</span>
@@ -113,7 +113,7 @@ export function OfferCard({ offer, onChanged, focused, index }: OfferCardProps) 
                 <span className="inline-flex items-center gap-1" title={new Date(offer.receivedAt).toLocaleString()}>
                   <Clock className="size-3" aria-hidden /> {relativeTime(offer.receivedAt)}
                 </span>
-                {offer.expiresAt && open && <span className="text-warning">expires {relativeTime(offer.expiresAt).replace(" ago", "")}</span>}
+                {offer.expiresAt && open && <span className="text-warning">expires {timeUntil(offer.expiresAt)}</span>}
               </p>
             </div>
             <div className="flex items-center gap-1.5">

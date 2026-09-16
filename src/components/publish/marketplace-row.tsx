@@ -65,12 +65,16 @@ export function MarketplaceRow({ row, itemId, returnTo, selected, onSelect, acti
               {live ? <CheckCircle2 className="size-5 text-success" /> : <span className="size-2 rounded-full bg-border-strong" />}
             </span>
           )}
-          <MonogramTile shortName={row.shortName} name={row.name} color={row.color} size="md" className="hidden sm:inline-flex" />
+          <span className="hidden sm:block">
+            <MonogramTile shortName={row.shortName} name={row.name} color={row.color} size="md" />
+          </span>
         </div>
 
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <MonogramTile shortName={row.shortName} name={row.name} color={row.color} size="sm" className="sm:hidden" />
+            <span className="sm:hidden">
+              <MonogramTile shortName={row.shortName} name={row.name} color={row.color} size="sm" />
+            </span>
             <label id={`row-${row.marketplace}-name`} htmlFor={includable ? checkboxId : undefined} className="text-base font-semibold text-primary">
               {row.name}
             </label>
@@ -159,8 +163,10 @@ function ConnectionLine({ row, returnTo }: { row: PublishRow; returnTo: string }
     return (
       <p className="flex items-center gap-1.5 text-xs text-secondary">
         <Plug className="size-3.5 text-success" aria-hidden />
-        Connected{row.accountName ? ` as ${row.accountName}` : ""}
-        {row.mode === "demo" && <span className="text-muted">· demo connection</span>}
+        <span>
+          Connected{row.accountName ? ` as ${row.accountName}` : ""}
+          {row.mode === "demo" ? " (demo connection)" : ""}
+        </span>
       </p>
     );
   }

@@ -66,13 +66,15 @@ export function SettingsPage(props: SettingsPageProps) {
     <Page>
       <PageHeader eyebrow="Settings" title="Settings" description="Your profile, how you sell, what Clover tells you, and what this installation can do." actions={props.capabilities.demoMode || !props.capabilities.ai ? <DemoBadge /> : undefined} />
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
-        <TabsList className="mb-6 hidden md:inline-flex" aria-label="Settings sections">
-          {TABS.map((t) => (
-            <TabsTrigger key={t.value} value={t.value}>
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="mb-6 hidden md:block">
+          <TabsList aria-label="Settings sections">
+            {TABS.map((t) => (
+              <TabsTrigger key={t.value} value={t.value}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
         <div className="space-y-10 md:space-y-0">
           {TABS.map((t) => (
             <TabsContent key={t.value} value={t.value} forceMount className="outline-none md:data-[state=inactive]:hidden">

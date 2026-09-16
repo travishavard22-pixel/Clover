@@ -15,7 +15,8 @@ import { PublicationStatusBadge } from "@/components/marketplaces/publication-st
 import { PublishProgress } from "@/components/publish/publish-progress";
 import { PublishedActions } from "@/components/publish/published-actions";
 import type { PublicationMutation } from "@/components/publish/publish-api";
-import { listingFiltersToQuery, type ListingDTO, type ListingFilters } from "@/lib/marketplaces/listings";
+import type { ListingDTO } from "@/lib/marketplaces/listings";
+import { listingFiltersToQuery, type ListingFilters } from "@/lib/marketplaces/listing-filters";
 import { ListingCard } from "./listing-card";
 import { ListingsFilters, type ListingsView } from "./listings-filters";
 
@@ -202,7 +203,7 @@ function ListingsTable({ listings, onChanged }: { listings: ListingDTO[]; onChan
                 <td className="px-3 py-2 text-right">
                   <Money cents={p.price ?? l.item.listPrice} />
                 </td>
-                <td className="px-3 py-2 text-xs text-secondary tabular">{daysLiveLabel(l.daysLive) || "—"}</td>
+                <td className="px-3 py-2 text-xs text-secondary tabular">{daysLiveLabel(l.daysLive, p.status) || "—"}</td>
                 <td className="px-3 py-2">
                   {p.externalUrl ? (
                     <a href={p.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-text hover:underline">

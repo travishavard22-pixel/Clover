@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, ExternalLink, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,19 @@ export function AssistedSheet(props: AssistedSheetProps) {
   useEffect(() => {
     setUrl(publication.externalUrl ?? "");
   }, [publication.externalUrl, publication.id]);
+
+  // Reopening after the draft changed: refresh the copy text and photo count, keeping the seller's ticks.
+  const rebuiltFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open || isActionFlow || publication.status !== "REQUIRES_USER_ACTION" || rebuiltFor.current === publication.id) return;
+    rebuiltFor.current = publication.id;
+    publishApi
+      .rebuild(publication.id)
+      .then((res) => onChanged(res.publication))
+      .catch(() => {
+        // The stored checklist still works; nothing to show.
+      });
+  }, [open, isActionFlow, publication.id, publication.status, onChanged]);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || typeof File === "undefined") return;

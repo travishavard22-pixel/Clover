@@ -1,7 +1,6 @@
 import { db, type Marketplace, type PublicationStatus } from "../db";
 import { toPhotoDTO, type PhotoDTO } from "../items/dto";
 import { visiblePhotos } from "../photos/order";
-import { isMarketplace } from "./index";
 import { daysSince, PUBLICATION_STATUS_META } from "./labels";
 import { MARKETPLACES } from "./registry";
 import { latestPublishJobsForUser, toPublicationDTO, type PublicationDTO } from "./publications";
@@ -15,29 +14,8 @@ export type ListingDTO = {
   daysLive: number | null;
 };
 
-export type ListingFilters = { marketplace: Marketplace | null; status: PublicationStatus | "LIVE" | "ALL"; q: string };
-
-const STATUS_VALUES = new Set<string>(Object.keys(PUBLICATION_STATUS_META));
-
-/** Pure: reads `?marketplace=&status=&q=` into a filter object, ignoring anything unknown. */
-export function parseListingFilters(params: URLSearchParams): ListingFilters {
-  const mp = params.get("marketplace")?.toUpperCase() ?? "";
-  const status = params.get("status")?.toUpperCase() ?? "ALL";
-  return {
-    marketplace: isMarketplace(mp) ? mp : null,
-    status: status === "LIVE" || status === "ALL" ? status : STATUS_VALUES.has(status) ? (status as PublicationStatus) : "ALL",
-    q: (params.get("q") ?? "").trim().slice(0, 120),
-  };
-}
-
-export function listingFiltersToQuery(f: ListingFilters): string {
-  const p = new URLSearchParams();
-  if (f.marketplace) p.set("marketplace", f.marketplace.toLowerCase());
-  if (f.status !== "ALL") p.set("status", f.status.toLowerCase());
-  if (f.q) p.set("q", f.q);
-  const s = p.toString();
-  return s ? `?${s}` : "";
-}
+export { parseListingFilters, listingFiltersToQuery, type ListingFilters } from "./listing-filters";
+import type { ListingFilters } from "./listing-filters";
 
 const LIVE_BOARD_STATUSES: PublicationStatus[] = ["PUBLISHED", "REQUIRES_USER_ACTION", "NEEDS_ATTENTION", "PUBLISHING", "READY"];
 
