@@ -3,7 +3,7 @@ node_modules
 out
 dist
 coverage
-storage/
+/storage/
 *.log
 .env
 .env.local
