@@ -37,6 +37,6 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Skip static assets and prefetches; API routes get the headers from next.config.
-    { source: "/((?!_next/static|_next/image|favicon.ico|brand/|api/).*)", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
+    { source: "/((?!_next/|favicon.ico|brand/|icons/|manifest.webmanifest|api/).*)", missing: [{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }] },
   ],
 };

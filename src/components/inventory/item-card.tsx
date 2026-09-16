@@ -1,4 +1,5 @@
 "use client";
+import { MARKETPLACES } from "@/lib/marketplaces/registry";
 import { forwardRef, useRef } from "react";
 import { Money } from "@/components/ui/money";
 import { Checkbox } from "@/components/ui/switch";
@@ -91,7 +92,7 @@ export const ItemCard = forwardRef<HTMLElement, ItemCardProps>(function ItemCard
           />
         </div>
         {item.cover?.aiGenerated && <AiBadge label="AI background" className="absolute right-2 top-2 h-5 text-[10px]" />}
-        {sold && <span className="absolute inset-x-0 bottom-0 bg-scrim px-3 py-1.5 text-xs font-medium text-white">Sold{item.soldMarketplace ? ` · ${item.soldMarketplace.charAt(0)}${item.soldMarketplace.slice(1).toLowerCase()}` : ""}</span>}
+        {sold && <span className="absolute inset-x-0 bottom-0 bg-scrim px-3 py-1.5 text-xs font-medium text-white">Sold{item.soldMarketplace ? ` · ${MARKETPLACES[item.soldMarketplace].shortName}` : ""}</span>}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-3">
         <div className="flex items-start justify-between gap-2">

@@ -16,6 +16,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // Dev servers are reached via 127.0.0.1 by Playwright and per-engineer ports; allow them for HMR/dev resources.
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ["sharp", "pg", "@prisma/client", "@prisma/adapter-pg"],

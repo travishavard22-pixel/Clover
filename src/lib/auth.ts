@@ -10,7 +10,8 @@ export const auth = betterAuth({
   baseURL: env.APP_URL,
   secret: env.BETTER_AUTH_SECRET,
   database: prismaAdapter(db, { provider: "postgresql" }),
-  trustedOrigins: [env.APP_URL],
+  // In development the app may be served from another port (per-engineer dev servers); trust loopback hosts then.
+  trustedOrigins: [env.APP_URL, ...(env.NODE_ENV === "production" ? [] : ["http://localhost:*", "http://127.0.0.1:*"])],
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 10,

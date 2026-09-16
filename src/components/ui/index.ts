@@ -9,3 +9,4 @@ export * from "./tabs";
 export * from "./switch";
 export * from "./select";
 export * from "./tooltip";
+export * from "./button-classes";
