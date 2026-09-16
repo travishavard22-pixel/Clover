@@ -34,8 +34,9 @@ COPY --from=build --chown=clover:clover /app/scripts ./scripts
 COPY --from=build --chown=clover:clover /app/src ./src
 COPY --from=build --chown=clover:clover /app/tsconfig.json ./tsconfig.json
 COPY --from=build --chown=clover:clover /app/next.config.ts ./next.config.ts
-RUN mkdir -p /app/storage && chown clover:clover /app/storage
+RUN mkdir -p /app/storage /app/.cache && chown clover:clover /app/storage /app/.cache
 USER clover
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["sh", "-c", "pnpm exec prisma migrate deploy && pnpm exec next start -p ${PORT}"]
+
