@@ -539,7 +539,7 @@ export const DEMO_CATALOG: DemoCatalogEntry[] = [
     vocabulary: { aspects: ["Brand: Levi's", "Type: Denim Jacket", "Style: Trucker Jacket", "Size: 42", "Material: Denim", "Vintage: Yes", "Decade: 1980s"], categories: ["Coats, Jackets & Vests"] },
     copy: {
       title: "Vintage Levi's Type III Denim Trucker Jacket, Medium Wash Indigo",
-      seoTitle: "Vintage Levi's Type III Trucker Denim Jacket 70506 Medium Wash Indigo 80s Jean Jacket",
+      seoTitle: "Vintage Levi's Type III Trucker Denim Jacket Medium Wash Indigo Jean Jacket Button Front",
       intro: [
         "A vintage Levi's Type III denim trucker jacket in medium-wash indigo with the classic two pointed-flap chest pockets and metal button front. Red tab and leather patch are present.",
         "The care tag is faded, so the lot number and size are not confirmed. Measurements are listed under unknowns; please ask for pit-to-pit before buying.",

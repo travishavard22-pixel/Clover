@@ -36,6 +36,8 @@ export type SnapshotPublication = {
   status: PublicationStatus;
   price: number | null;
   externalUrl: string | null;
+  /** `attention.code` when the publication carries an attention record (e.g. "double_sell_guard"). */
+  attentionCode: string | null;
   publishedAt: string | null;
   updatedAt: string;
 };
@@ -77,6 +79,7 @@ export type SnapshotItem = {
   soldPrice: number | null;
   soldMarketplace: Marketplace | null;
   quantity: number;
+  notes: string | null;
   listedAt: string | null;
   soldAt: string | null;
   createdAt: string;

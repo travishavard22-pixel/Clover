@@ -342,6 +342,8 @@ export function estimatePrice(target: PricingTarget, candidates: CompCandidate[]
     version: ENGINE_VERSION,
     provider: options.compsProvider ?? null,
     compsError: options.compsError ?? null,
+    vocabulary: options.vocabulary ?? [],
+    query: options.query ?? null,
     target,
     similarity: { threshold: SIMILARITY_THRESHOLD, targetTokens: tt.all },
     counts: { candidates: candidates.length, afterSimilarity, afterLots, afterCondition, afterIqr, included: included.length, marketEvidence, sold, userExcluded, userIncluded },

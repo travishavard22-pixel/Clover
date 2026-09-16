@@ -44,6 +44,16 @@ export function endListingChecklist(marketplace: Marketplace, externalUrl: strin
   return [{ key: "end", label: `End this listing on ${info.name}`, done: false, href: externalUrl ?? info.createUrl ?? undefined }];
 }
 
+export function updatePriceChecklist(marketplace: Marketplace, externalUrl: string | null, priceCents: number): ChecklistStep[] {
+  const info = MARKETPLACES[marketplace];
+  const price = (priceCents / 100).toFixed(2);
+  return [
+    { key: "open_listing", label: `Open your listing on ${info.name}`, done: false, href: externalUrl ?? info.createUrl ?? undefined },
+    { key: "price", label: `Change the price to $${price}`, done: false, copyText: price },
+    { key: "updated", label: "I updated it", done: false },
+  ];
+}
+
 export function checklistProgress(steps: ChecklistStep[]): { done: number; total: number } {
   return { done: steps.filter((s) => s.done).length, total: steps.length };
 }

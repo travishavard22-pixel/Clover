@@ -1,40 +1,15 @@
-import { z } from "zod";
 import { db, Prisma, type Item, type Marketplace, type Publication } from "../db";
 import { ApiError } from "../api";
 import { audit } from "../audit";
 import { enqueueJob } from "../jobs/queue";
 import { getOwnedItem } from "../items/access";
 import { canTransition } from "../items/status";
-import { estimateFees, MARKETPLACES } from "../marketplaces/registry";
+import { MARKETPLACES } from "../marketplaces/registry";
+import { DOUBLE_SELL_ATTENTION, resolveFees, type MarkSoldInput } from "./rules";
 import { formatMoney } from "../money";
 import { notify } from "../notifications";
 
-export const MarkSoldSchema = z.object({
-  soldPriceCents: z.number().int().min(1, "Sold price must be at least $0.01").max(100_000_000),
-  marketplace: z.enum(["EBAY", "FACEBOOK", "OFFERUP", "NEXTDOOR", "CRAIGSLIST", "MERCARI", "POSHMARK"]).optional(),
-  feesCents: z.number().int().min(0).max(100_000_000).optional(),
-  shippingCostCents: z.number().int().min(0).max(100_000_000).optional(),
-  buyerName: z.string().trim().max(120).optional(),
-  /** Whether the buyer collected locally (no marketplace fee on local-free marketplaces). */
-  local: z.boolean().optional(),
-  soldAt: z.coerce.date().optional(),
-});
-export type MarkSoldInput = z.infer<typeof MarkSoldSchema>;
-
-export const DOUBLE_SELL_ATTENTION = (soldOn: string) => ({
-  code: "double_sell_guard",
-  message: `Sold ${soldOn} — end this listing`,
-  recovery: "Open the listing on the marketplace and end it so nobody else buys it. Then mark this step done.",
-});
-
 const STILL_LIVE = new Set<Publication["status"]>(["READY", "NEEDS_ATTENTION", "PUBLISHING", "PUBLISHED", "REQUIRES_USER_ACTION"]);
-
-/** Pure: fees to record. Explicit fees win; otherwise estimate from the marketplace fee table. */
-export function resolveFees(input: MarkSoldInput): number | null {
-  if (input.feesCents !== undefined) return input.feesCents;
-  if (!input.marketplace) return null;
-  return estimateFees(input.marketplace, input.soldPriceCents, { local: input.local });
-}
 
 export type MarkSoldResult = {
   item: Item;

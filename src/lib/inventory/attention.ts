@@ -64,6 +64,7 @@ export async function getAttention(userId: string, opts: { limit?: number; now?:
       marketplace: o.marketplace,
       amount: o.amount,
       at: o.receivedAt.toISOString(),
+      actions: [],
     });
   }
   for (const p of publications) {
@@ -84,6 +85,7 @@ export async function getAttention(userId: string, opts: { limit?: number; now?:
       marketplace: p.marketplace,
       amount: null,
       at: p.updatedAt.toISOString(),
+      actions: [],
     });
   }
   for (const r of recommendations) {
@@ -101,6 +103,11 @@ export async function getAttention(userId: string, opts: { limit?: number; now?:
       marketplace: null,
       amount: null,
       at: r.createdAt.toISOString(),
+      actions: [
+        { key: "apply", label: "Apply", method: "POST", href: `/api/recommendations/${r.id}/apply` },
+        { key: "snooze", label: "Snooze", method: "POST", href: `/api/recommendations/${r.id}/snooze`, body: { days: 3 } },
+        { key: "dismiss", label: "Dismiss", method: "POST", href: `/api/recommendations/${r.id}/dismiss` },
+      ],
     });
   }
   const recommendedItemIds = new Set(recommendations.map((r) => r.itemId).filter(Boolean));
@@ -121,6 +128,7 @@ export async function getAttention(userId: string, opts: { limit?: number; now?:
       marketplace: null,
       amount: s.listPrice,
       at: s.listedAt?.toISOString() ?? now.toISOString(),
+      actions: [],
     });
   }
   for (const d of drafts) {
@@ -138,6 +146,7 @@ export async function getAttention(userId: string, opts: { limit?: number; now?:
       marketplace: null,
       amount: null,
       at: d.updatedAt.toISOString(),
+      actions: [],
     });
   }
   for (const c of connections) {
@@ -156,6 +165,7 @@ export async function getAttention(userId: string, opts: { limit?: number; now?:
       marketplace: c.marketplace,
       amount: null,
       at: c.updatedAt.toISOString(),
+      actions: [],
     });
   }
   rows.sort((a, b) => a.severity - b.severity || b.at.localeCompare(a.at));

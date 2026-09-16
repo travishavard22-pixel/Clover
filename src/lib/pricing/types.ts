@@ -82,6 +82,10 @@ export type PricingOptions = {
   compsError?: string | null;
   /** Which provider produced the comps ("ebay" | "demo"). */
   compsProvider?: string | null;
+  /** Item-specific vocabulary the comps search returned; carried in `method` for the listing generator. */
+  vocabulary?: string[];
+  /** The comps query, recorded for the expert panel. */
+  query?: { gtin: string | null; q: string | null; conditionIds: number[] } | null;
 };
 
 export type NetBreakdown = { fees: number; shippingCost: number; net: number };
@@ -102,6 +106,8 @@ export type PricingMethod = {
   version: string;
   provider: string | null;
   compsError: string | null;
+  vocabulary: string[];
+  query: { gtin: string | null; q: string | null; conditionIds: number[] } | null;
   target: PricingTarget;
   similarity: { threshold: number; targetTokens: string[] };
   counts: { candidates: number; afterSimilarity: number; afterLots: number; afterCondition: number; afterIqr: number; included: number; marketEvidence: number; sold: number; userExcluded: number; userIncluded: number };

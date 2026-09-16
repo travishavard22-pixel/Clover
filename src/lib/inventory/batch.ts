@@ -5,7 +5,7 @@ import { audit } from "../audit";
 import { canTransition } from "../items/status";
 import { applyReprice } from "./compute";
 import { itemsToCsv } from "./csv";
-import { statusSideEffects, deleteOrArchive } from "./status";
+import { deleteOrArchive, statusSideEffects, unarchiveTarget } from "./rules";
 
 const ids = z.array(z.string().min(1).max(64)).min(1).max(200);
 
@@ -74,7 +74,7 @@ export async function runBatch(userId: string, input: BatchInput, meta: Meta = {
           results.push({ id: item.id, ok: true, before: item.status, after: item.status });
           continue;
         }
-        const to: ItemStatus = item.listPrice ? "READY" : "DRAFT";
+        const to: ItemStatus = unarchiveTarget(item);
         await db.item.update({ where: { id: item.id }, data: { status: to, archivedAt: null } });
         results.push({ id: item.id, ok: true, before: "ARCHIVED", after: to });
       }

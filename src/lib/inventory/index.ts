@@ -1,5 +1,7 @@
 export * from "./types";
 export * from "./compute";
+export * from "./filters";
+export * from "./rules";
 export * from "./csv";
 export * from "./query";
 export * from "./update";
@@ -8,3 +10,5 @@ export * from "./sold";
 export * from "./batch";
 export * from "./metrics";
 export * from "./attention";
+export * from "./notifications";
+export * from "./detail";

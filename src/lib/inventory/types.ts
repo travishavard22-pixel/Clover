@@ -75,6 +75,9 @@ export type ListResult = { items: ItemListDTO[]; nextCursor: string | null };
 
 export type AttentionKind = "offer" | "publication" | "recommendation" | "stale" | "draft" | "connection";
 
+/** A secondary action the feed can perform in place (POST to `href`), e.g. dismiss or snooze a recommendation. */
+export type AttentionAction = { key: "apply" | "dismiss" | "snooze"; label: string; method: "POST"; href: string; body?: Record<string, unknown> };
+
 export type AttentionRow = {
   id: string;
   kind: AttentionKind;
@@ -89,4 +92,18 @@ export type AttentionRow = {
   marketplace: Marketplace | null;
   amount: number | null;
   at: string;
+  /** In-place actions (currently only recommendations). The primary action is always the `href` link. */
+  actions: AttentionAction[];
 };
+
+export type NotificationDTO = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  href: string | null;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type NotificationsPage = { notifications: NotificationDTO[]; unread: number; nextCursor: string | null };
