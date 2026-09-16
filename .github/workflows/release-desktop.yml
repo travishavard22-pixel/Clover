@@ -2,7 +2,8 @@ name: Desktop release
 
 # Builds signed-ready installers for macOS (Apple Silicon and Intel), Windows and Linux with Tauri
 # and attaches them to a draft GitHub release. Trigger by pushing a tag like `desktop-v0.1.0` or
-# from the Actions tab. Set the repository variable CLOVER_APP_URL to your hosted address first.
+# from the Actions tab. Pull requests that touch the desktop shell also build (into the rolling
+# `desktop-dev` draft) so a broken shell is caught before it is tagged. Set the repository variable CLOVER_APP_URL to your hosted address first.
 #
 # Auto-update is enabled when the repository variable TAURI_UPDATER_PUBKEY and the secrets
 # TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD exist (docs/runbooks/native-apps.md).
@@ -15,6 +16,8 @@ name: Desktop release
 on:
   push:
     tags: ["desktop-v*"]
+  pull_request:
+    paths: ["apps/desktop/**", ".github/workflows/release-desktop.yml"]
   workflow_dispatch:
 
 permissions:
