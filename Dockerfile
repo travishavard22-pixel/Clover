@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1.7
 FROM node:22-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+# pnpm as a plain global install rather than through corepack: at runtime the non-root user cannot
+# write corepack's cache under its home, and corepack would otherwise fetch pnpm from the registry
+# on every container start.
+RUN npm install -g pnpm@10.33.0
 WORKDIR /app
 
 FROM base AS deps
@@ -34,7 +37,8 @@ COPY --from=build --chown=clover:clover /app/scripts ./scripts
 COPY --from=build --chown=clover:clover /app/src ./src
 COPY --from=build --chown=clover:clover /app/tsconfig.json ./tsconfig.json
 COPY --from=build --chown=clover:clover /app/next.config.ts ./next.config.ts
-RUN mkdir -p /app/storage && chown clover:clover /app/storage
+# Writable home for the app user: local photo storage, and the caches tools such as Prisma keep under ~/.cache.
+RUN mkdir -p /app/storage /app/.cache && chown -R clover:clover /app/storage /app/.cache
 USER clover
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
