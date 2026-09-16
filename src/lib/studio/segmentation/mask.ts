@@ -10,11 +10,30 @@ export async function maskFromCutout(cutout: Buffer): Promise<Buffer> {
   return sharp(cutout).ensureAlpha().extractChannel("alpha").toColourspace("b-w").png().toBuffer();
 }
 
+/**
+ * Interleave raw RGB pixels with a raw single-channel alpha into an RGBA PNG.
+ * Done by hand: sharp's `joinChannel` on an encoded source can drop the alpha interpretation,
+ * and the identity rule depends on the RGB bytes being copied exactly.
+ */
+export async function rgbaFromRgbAndAlpha(rgb: Buffer, alpha: Buffer, width: number, height: number): Promise<Buffer> {
+  const n = width * height;
+  if (rgb.length !== n * 3) throw new Error(`rgb buffer has ${rgb.length} bytes, expected ${n * 3}`);
+  if (alpha.length !== n) throw new Error(`alpha buffer has ${alpha.length} bytes, expected ${n}`);
+  const rgba = Buffer.alloc(n * 4);
+  for (let i = 0; i < n; i++) {
+    rgba[i * 4] = rgb[i * 3]!;
+    rgba[i * 4 + 1] = rgb[i * 3 + 1]!;
+    rgba[i * 4 + 2] = rgb[i * 3 + 2]!;
+    rgba[i * 4 + 3] = alpha[i]!;
+  }
+  return sharp(rgba, { raw: { width, height, channels: 4 } }).png().toBuffer();
+}
+
 /** Join a mask (L) onto the source RGB to produce the cut-out PNG. Source pixels are copied, never modified. */
 export async function cutoutFromMask(source: Buffer, mask: Buffer): Promise<Buffer> {
-  const { width, height } = await sharp(source).metadata();
-  const alpha = await sharp(mask).resize(width, height, { fit: "fill", kernel: "nearest" }).toColourspace("b-w").raw().toBuffer();
-  return sharp(source).removeAlpha().joinChannel(alpha, { raw: { width: width!, height: height!, channels: 1 } }).png().toBuffer();
+  const { data, info } = await sharp(source).removeAlpha().toColourspace("srgb").raw().toBuffer({ resolveWithObject: true });
+  const alpha = await sharp(mask).resize(info.width, info.height, { fit: "fill", kernel: "nearest" }).toColourspace("b-w").raw().toBuffer();
+  return rgbaFromRgbAndAlpha(data, alpha, info.width, info.height);
 }
 
 /** Fraction (0..1) of the mask that is "item". */

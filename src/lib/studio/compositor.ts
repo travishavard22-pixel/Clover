@@ -5,6 +5,7 @@ import { shadowParams, type ShadowParams } from "./lighting";
 import { colourBalanceRequested, type StudioOptions } from "./options";
 import { STUDIO_ACCENT_HEX, STUDIO_INK_HEX } from "./palette";
 import { SegmentationFailed } from "./segmentation/types";
+import { rgbaFromRgbAndAlpha } from "./segmentation/mask";
 
 /**
  * The compositor. Pure sharp; no DB, no network.
@@ -16,6 +17,8 @@ import { SegmentationFailed } from "./segmentation/types";
  */
 
 export const DEFAULT_MAX_EDGE = 2048;
+/** CONDITION close-ups zoom modestly so the defect keeps its surroundings; the ring does the pointing. */
+export const CONDITION_ZOOM = 1.35;
 export const JPEG_QUALITY = 92;
 
 export type RawImage = { data: Buffer; width: number; height: number; channels: 3 };
@@ -75,9 +78,11 @@ async function shadowLayer(maskRegion: Buffer, plan: CompositePlan): Promise<Buf
     }
   }
   const sigma = Math.max(0.3, p.sigma * (Math.max(frame.width, frame.height) / 1024));
+  // `blur` promotes a one-band raw image to three bands; pin it back to b-w so the stride is 1 byte/px.
   const blurred = await sharp(alpha, { raw: { width: frame.width, height: frame.height, channels: 1 } })
     .blur(sigma)
     .linear(p.opacity, 0)
+    .toColourspace("b-w")
     .raw()
     .toBuffer();
   const rgba = Buffer.alloc(frame.width * frame.height * 4, 0);
@@ -104,8 +109,9 @@ export async function compositeItem(source: Buffer, mask: Buffer, background: Re
 
   // Cut-out region = source pixels (untouched) + mask alpha, then the single uniform scale.
   const maskRegion = await sharp(msk).extract(itemBox).toColourspace("b-w").png().toBuffer();
-  const alpha = await sharp(maskRegion).raw().toBuffer();
-  let item = sharp(src).removeAlpha().extract(itemBox).joinChannel(alpha, { raw: { width: itemBox.width, height: itemBox.height, channels: 1 } });
+  const alpha = await sharp(maskRegion).toColourspace("b-w").raw().toBuffer();
+  const itemRgb = await sharp(src).removeAlpha().toColourspace("srgb").extract(itemBox).raw().toBuffer();
+  let item = sharp(await rgbaFromRgbAndAlpha(itemRgb, alpha, itemBox.width, itemBox.height));
   if (placement.width !== itemBox.width || placement.height !== itemBox.height) item = item.resize(placement.width, placement.height, { fit: "fill", kernel: "lanczos3" });
   const itemPng = await item.png().toBuffer();
 
@@ -276,7 +282,7 @@ export async function renderCondition(source: Buffer, options: StudioOptions, op
   const meta = await sharp(source).metadata();
   const w = meta.width!, h = meta.height!;
   const focus = options.flipHorizontal ? { x: 1 - options.focus.x, y: options.focus.y } : options.focus;
-  const crop = focusCrop(w, h, focus, 1.6, options.crop.aspect);
+  const crop = focusCrop(w, h, focus, CONDITION_ZOOM, options.crop.aspect);
   let img = sharp(source).removeAlpha();
   if (options.flipHorizontal) img = img.flop();
   const cropped = await img.extract(crop).resize({ width: maxEdge, height: maxEdge, fit: "inside", withoutEnlargement: true }).raw().toBuffer({ resolveWithObject: true });
