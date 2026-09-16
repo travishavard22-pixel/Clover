@@ -14,6 +14,7 @@ import { ProfileSection } from "./profile-section";
 import { ProvidersSection } from "./providers-section";
 import { SellingSection } from "./selling-section";
 import { SessionsSection } from "./sessions-section";
+import { PushDevicesSection } from "./push-devices-section";
 import type { ExportStatus } from "./settings-api";
 import { usePreferences } from "./use-preferences";
 
@@ -59,7 +60,12 @@ export function SettingsPage(props: SettingsPageProps) {
     providers: <ProvidersSection capabilities={props.capabilities} />,
     privacy: <PrivacySection exportStatus={props.exportStatus} email={props.profile.email} itemCount={props.itemCount} />,
     connections: <ConnectionsSection connections={props.connections} />,
-    sessions: <SessionsSection sessions={props.sessions} />,
+    sessions: (
+      <>
+        <SessionsSection sessions={props.sessions} />
+        <PushDevicesSection pushConfigured={props.capabilities.push} />
+      </>
+    ),
   };
 
   return (

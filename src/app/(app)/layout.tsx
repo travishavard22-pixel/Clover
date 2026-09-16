@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/shell/app-shell";
+import { PushRegistration } from "@/components/shell/push-registration";
 import { db } from "@/lib/db";
 import { publicCapabilities } from "@/lib/env";
 import { requireUser } from "@/lib/session";
@@ -13,6 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!prefs?.onboardingComplete) redirect("/onboarding");
   return (
     <AppShell user={{ id: user.id, name: user.name, email: user.email, image: user.image }} capabilities={publicCapabilities()} unread={unread}>
+      <PushRegistration />
       {children}
     </AppShell>
   );

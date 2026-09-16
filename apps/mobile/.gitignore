@@ -14,3 +14,5 @@ android/app/src/main/assets/capacitor.plugins.json
 ios/App/App/public/
 ios/App/App/capacitor.config.json
 ios/App/App/config.xml
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist

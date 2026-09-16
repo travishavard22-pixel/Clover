@@ -33,6 +33,7 @@ model User {
   auditLogs     AuditLog[]
   copilotThreads CopilotThread[]
   publications  Publication[]
+  pushDevices   PushDevice[]
 
   @@map("user")
 }
@@ -686,4 +687,18 @@ model CompCache {
   key       String   @id
   data      Json
   expiresAt DateTime
+}
+
+/// A phone or desktop that asked for push notifications. One row per device token.
+model PushDevice {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform   String
+  token      String   @unique
+  deviceName String?
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
 }

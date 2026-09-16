@@ -1,4 +1,5 @@
 "use client";
+import { unregisterThisDevice } from "@/components/shell/push-registration";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, Sun, Moon, Monitor, LogOut, User, HelpCircle } from "lucide-react";
@@ -76,6 +77,7 @@ export function TopBar({ user, capabilities }: { user: ShellUser; capabilities: 
           <MenuSeparator />
           <MenuItem
             onSelect={async () => {
+              await unregisterThisDevice();
               await signOut();
               router.push("/sign-in");
               router.refresh();

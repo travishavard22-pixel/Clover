@@ -56,6 +56,8 @@ Set these on **both** `web` and `worker` (and `automations` if you added it). Ra
 | `S3_SECRET_ACCESS_KEY` | from step 2 |
 | `CLOVER_INLINE_WORKER` | `0` on `web` only (the worker service does the jobs) |
 | `ANTHROPIC_API_KEY` | your key from console.anthropic.com, when you want live AI |
+| `FCM_SERVICE_ACCOUNT_JSON` | Firebase service account JSON (base64 is fine) — push to Android; see `native-apps.md` |
+| `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` | Apple push key (.p8 contents) — push to iPhones; see `native-apps.md` |
 
 Without `ANTHROPIC_API_KEY` and eBay credentials the app runs in labelled Demo mode, which is a
 fine way to try the hosted version before paying for anything.

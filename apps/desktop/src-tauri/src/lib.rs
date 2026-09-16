@@ -28,9 +28,14 @@ pub fn run() {
     let app_url = app_url();
     let app_host = app_url.host_str().unwrap_or_default().to_string();
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    #[cfg(feature = "updater")]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+
+    builder
         .setup(move |app| {
+            #[cfg(feature = "updater")]
+            spawn_update_check(app.handle().clone());
             let handle = app.handle().clone();
             let home_host = app_host.clone();
             let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(app_url.clone()))
@@ -65,6 +70,25 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running Clover");
+}
+
+/// Checks the release feed once at launch and, when a newer build exists, installs it and
+/// restarts. Launch is the one moment a restart cannot interrupt anyone's work.
+#[cfg(feature = "updater")]
+fn spawn_update_check(handle: tauri::AppHandle) {
+    use tauri_plugin_updater::UpdaterExt;
+    tauri::async_runtime::spawn(async move {
+        let Ok(updater) = handle.updater() else { return };
+        match updater.check().await {
+            Ok(Some(update)) => {
+                if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+                    handle.restart();
+                }
+            }
+            Ok(None) => {}
+            Err(err) => eprintln!("[updater] check failed: {err}"),
+        }
+    });
 }
 
 fn dirs_download() -> Option<std::path::PathBuf> {

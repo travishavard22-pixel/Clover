@@ -41,8 +41,18 @@ sign:
 `pnpm install` and `CLOVER_APP_URL=https://app.example.com pnpm build`. Linux needs
 `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev` and `patchelf`.
 
-**Auto-update** is a follow-up: Tauri's updater plugin needs a signing key pair and a `latest.json`
-feed, which the release workflow can publish once the key exists.
+**Auto-update.** The app checks the latest GitHub release at launch and installs a newer build
+before showing the window. It is switched on by an updater key pair:
+
+1. On your computer: `cd apps/desktop && pnpm install && pnpm tauri signer generate -w ~/.tauri/clover.key`
+   (choose a password). Keep `~/.tauri/clover.key` safe; it cannot be recreated and every
+   future update must be signed with it.
+2. Repository **variable** `TAURI_UPDATER_PUBKEY`: the contents of `~/.tauri/clover.key.pub`.
+3. Repository **secrets** `TAURI_SIGNING_PRIVATE_KEY` (contents of `clover.key`) and
+   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+4. Publish releases (not drafts): the workflow adds a signed `latest.json` that installed apps
+   read. Bump `version` in `apps/desktop/src-tauri/tauri.conf.json` and
+   `apps/desktop/src-tauri/Cargo.toml` for each release; the app only updates to a higher version.
 
 ## iOS and Android — Capacitor
 
@@ -65,6 +75,23 @@ Program membership:
 1. `cd apps/mobile && pnpm install && pnpm add:ios && pnpm sync`.
 2. `pnpm open:ios`, select your team under *Signing & Capabilities*, and run on your phone.
 3. For TestFlight and the App Store, archive from Xcode and upload with the Organizer.
+
+**Push notifications for offers.** The phone apps register for notifications the first time the
+seller allows them, and every in-app notification (new offer, listing needs attention, item ready,
+sale recorded) is pushed to the registered devices. Delivery needs credentials on the server:
+
+- Android: create a Firebase project at console.firebase.google.com, add an Android app with the
+  package name `app.clover.mobile`, download `google-services.json`, and store it base64-encoded
+  in the repository secret `GOOGLE_SERVICES_JSON` (the Android workflow writes it into the
+  project; it is deliberately not committed). Then Project settings → Service accounts → Generate
+  new private key, and put that JSON in the server variable `FCM_SERVICE_ACCOUNT_JSON`.
+- iOS: in the Apple Developer account create a Key with *Apple Push Notifications service*
+  enabled, download the `.p8` once, and set `APNS_KEY_ID`, `APNS_TEAM_ID` and
+  `APNS_PRIVATE_KEY` (the file contents) on the server. In Xcode add the *Push Notifications*
+  capability to the app target. Use `APNS_ENV=sandbox` for builds run from Xcode and
+  `production` for TestFlight and the App Store.
+
+Registered devices are listed under Settings → Sessions, where any of them can be removed.
 
 **Store review notes.** Both stores accept apps built this way when the app is clearly more than a
 website in a frame. Clover's native camera capture, share-sheet posting flows and home-screen
