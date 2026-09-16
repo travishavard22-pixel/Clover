@@ -8,6 +8,7 @@ export * from "./dedupe";
 export * from "./evaluators";
 export { runAutomationsForUser, type RunSummary } from "./engine";
 export { applyRecommendation, executeProposal, parseProposal, type ApplyResult } from "./apply";
+export * from "./recommendations";
 
 export const RUN_STEPS = [
   { key: "snapshot", label: "Reading your inventory" },

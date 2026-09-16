@@ -1,6 +1,7 @@
 import { getAiProvider } from "../../ai";
 import { AiRefusalError, AiUnavailableError } from "../../ai/anthropic";
 import type { IdentifyInput, IdentifyOutput } from "../../ai/provider";
+import { mergeUserVerified, parseStoredProfile } from "../../ai/profile-edit";
 import type { ItemProfile } from "../../ai/schemas";
 import { loadVisionPhotos } from "../../ai/vision-input";
 import { ANALYZE_STEPS, STUDIO_STEPS } from "../../analysis/steps";
@@ -220,11 +221,15 @@ function hintsFor(item: Item): IdentifyInput["userHints"] {
   return Object.keys(hints).length ? hints : undefined;
 }
 
+/** Upserts the profile, re-applying any fields the seller verified on a previous run. */
 async function persistProfile(itemId: string, out: IdentifyOutput, provider: string) {
+  const existing = await db.itemProfile.findUnique({ where: { itemId }, select: { data: true } });
+  const merged = mergeUserVerified(existing ? parseStoredProfile(existing.data) : null, out.profile);
+  if (merged.userVerified.length) out.profile = merged;
   const data = {
-    data: out.profile as unknown as Prisma.InputJsonValue,
-    identityConfidence: out.profile.identityConfidence,
-    conditionConfidence: out.profile.condition.confidence,
+    data: merged as unknown as Prisma.InputJsonValue,
+    identityConfidence: merged.identityConfidence,
+    conditionConfidence: merged.condition.confidence,
     provider,
     model: out.model,
     promptVersion: out.promptVersion,

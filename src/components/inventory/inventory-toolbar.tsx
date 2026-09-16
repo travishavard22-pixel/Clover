@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { LayoutGrid, Rows3, ScanLine, Search, X } from "lucide-react";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { Input } from "@/components/ui/input";
 import { Select, Segmented } from "@/components/ui/select";
 import type { ItemStatus, Marketplace } from "@/lib/db";

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { AnalysisSequence } from "@/components/analysis/analysis-sequence";
 import { StartAnalysisButton } from "@/components/analysis/start-analysis-button";
 import { Page, PageHeader } from "@/components/layout/page-header";
-import { buttonClasses } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { ANALYZE_STEPS } from "@/lib/analysis/steps";
 import { db } from "@/lib/db";
 import { publicCapabilities } from "@/lib/env";

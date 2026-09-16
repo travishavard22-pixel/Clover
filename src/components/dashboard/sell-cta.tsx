@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Camera, Upload } from "lucide-react";
-import { buttonClasses } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 
 /** The one call to action on the dashboard. Calm, not a banner. */
 export function SellCta({ firstTime }: { firstTime?: boolean }) {

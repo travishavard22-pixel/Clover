@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { Clock } from "lucide-react";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 
 /** Shown after 90 s without completion. The job keeps running whether the seller stays or leaves. */
 export function SlowNotice({ onKeepWaiting, connection }: { onKeepWaiting: () => void; connection: string }) {

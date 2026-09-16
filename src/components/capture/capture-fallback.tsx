@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { Camera, CameraOff, RefreshCw, Upload, X } from "lucide-react";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import type { CameraStatus } from "./use-camera";
 
 /** No camera, permission denied, or a hardware error: explain plainly and keep the seller moving. */

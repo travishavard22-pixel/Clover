@@ -4,7 +4,9 @@ import type { CopilotTurn } from "../ai/provider";
 import type { CopilotProposal } from "./proposals";
 
 export type ToolTraceEntry = { name: string; input: Record<string, unknown>; summary: string };
-export type StoredToolTrace = { tools: ToolTraceEntry[]; proposals: CopilotProposal[]; stopped?: boolean };
+/** Recorded on the confirmation message written when the seller applies a proposal from the thread. */
+export type AppliedProposalNote = { proposalId: string; kind: CopilotProposal["kind"]; summary: string };
+export type StoredToolTrace = { tools: ToolTraceEntry[]; proposals: CopilotProposal[]; stopped?: boolean; applied?: AppliedProposalNote };
 
 export type ThreadDTO = { id: string; title: string; createdAt: string; updatedAt: string; messageCount: number; preview: string | null };
 export type MessageDTO = { id: string; role: "user" | "assistant"; content: string; toolTrace: StoredToolTrace | null; createdAt: string };
@@ -20,7 +22,7 @@ export function toMessageDTO(m: CopilotMessage): MessageDTO {
 export function parseTrace(raw: unknown): StoredToolTrace | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Partial<StoredToolTrace>;
-  return { tools: Array.isArray(r.tools) ? r.tools : [], proposals: Array.isArray(r.proposals) ? (r.proposals as CopilotProposal[]) : [], stopped: r.stopped === true };
+  return { tools: Array.isArray(r.tools) ? r.tools : [], proposals: Array.isArray(r.proposals) ? (r.proposals as CopilotProposal[]) : [], stopped: r.stopped === true, applied: r.applied && typeof r.applied === "object" ? r.applied : undefined };
 }
 
 export async function listThreads(userId: string, limit = 50): Promise<ThreadDTO[]> {

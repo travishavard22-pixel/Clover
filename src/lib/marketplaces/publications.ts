@@ -80,6 +80,17 @@ export async function latestPublishJobs(itemId: string): Promise<Map<string, { i
   return map;
 }
 
+/** Latest PUBLISH job per publication across every item of a user (for the Listings board). */
+export async function latestPublishJobsForUser(userId: string): Promise<Map<string, { id: string; status: string }>> {
+  const jobs = await db.job.findMany({ where: { userId, type: "PUBLISH" }, orderBy: { createdAt: "desc" }, select: { id: true, status: true, payload: true }, take: 300 });
+  const map = new Map<string, { id: string; status: string }>();
+  for (const j of jobs) {
+    const pid = (j.payload as { publicationId?: string }).publicationId;
+    if (pid && !map.has(pid)) map.set(pid, { id: j.id, status: j.status });
+  }
+  return map;
+}
+
 export async function getOwnedPublication(userId: string, publicationId: string) {
   const p = await db.publication.findFirst({ where: { id: publicationId, userId }, include: { item: true, connection: true } });
   if (!p) throw new ApiError(404, "Publication not found", "not_found");

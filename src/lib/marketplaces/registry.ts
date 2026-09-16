@@ -137,6 +137,11 @@ export const MARKETPLACES: Record<Marketplace, MarketplaceInfo> = {
 export const PRIMARY_MARKETPLACES: Marketplace[] = ["EBAY", "FACEBOOK", "OFFERUP", "NEXTDOOR"];
 export const ALL_MARKETPLACES = Object.keys(MARKETPLACES) as Marketplace[];
 
+/** Client-safe type guard (the one in ./index pulls in db/env). */
+export function isMarketplaceId(value: string): value is Marketplace {
+  return Object.prototype.hasOwnProperty.call(MARKETPLACES, value);
+}
+
 /** Fee netting. `shippingCents` is buyer-paid shipping (included in fee basis where the marketplace charges on it). */
 export function estimateFees(marketplace: Marketplace, priceCents: number, opts: { shippingCents?: number; local?: boolean } = {}): number {
   const f = MARKETPLACES[marketplace].fees;

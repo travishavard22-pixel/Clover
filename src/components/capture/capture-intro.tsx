@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { Camera, Upload, X } from "lucide-react";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { SHOT_GUIDE } from "./shot-guide";
 import { ShutterButton } from "./shutter-button";
 
