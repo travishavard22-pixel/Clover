@@ -5,6 +5,9 @@ ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1
 # write corepack's cache under its home, and corepack would otherwise fetch pnpm from the registry
 # on every container start.
 RUN npm install -g pnpm@10.33.0
+# OpenSSL and CA certificates: Prisma's schema engine links against libssl, and hosted Postgres and
+# object storage are reached over TLS.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 FROM base AS deps
