@@ -16,7 +16,7 @@ export { renderSolid } from "./solid";
 export { renderGradient, gradientSvg } from "./gradient";
 export { renderStudioSweep } from "./studio-sweep";
 export { renderBlurredOriginal } from "./blurred-original";
-export { dominantColour } from "./dominant";
+export { dominantColour, dominantColourMasked } from "./dominant";
 
 export type BackgroundContext = {
   /** Original photo (for the blurred fallback and generators). */

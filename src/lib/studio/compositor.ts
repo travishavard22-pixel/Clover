@@ -178,7 +178,6 @@ export type EnhanceResult = { raw: RawImage; applied: string[]; colourBalanced: 
 export async function enhanceOnly(source: Buffer, options: StudioOptions, opts: { maxEdge?: number } = {}): Promise<EnhanceResult> {
   const maxEdge = opts.maxEdge ?? DEFAULT_MAX_EDGE;
   const applied: string[] = [];
-  const meta = await sharp(source).metadata();
   let img = sharp(source).removeAlpha().resize({ width: maxEdge, height: maxEdge, fit: "inside", withoutEnlargement: true });
   if (options.flipHorizontal) {
     img = img.flop();
@@ -220,7 +219,6 @@ export async function enhanceOnly(source: Buffer, options: StudioOptions, opts: 
     raw = await applyColourBalance(raw, options);
     applied.push("colour balance (user)");
   }
-  void meta;
   return { raw, applied, colourBalanced, mirrored: options.flipHorizontal };
 }
 

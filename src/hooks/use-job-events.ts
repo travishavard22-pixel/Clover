@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { JobStep, StepStatus } from "@/lib/jobs/types";
+import type { JobEventKind, JobStep, StepStatus } from "@/lib/jobs/types";
 
 /**
  * Subscribes to `GET /api/jobs/[id]/events` (Server-Sent Events) and folds the stream into a
@@ -18,6 +18,7 @@ import type { JobStep, StepStatus } from "@/lib/jobs/types";
  *  job_failed     { seq, message }
  *
  * EventSource reconnects on its own with Last-Event-ID; the route replays what was missed.
+ * The fold itself (`applyJobEvent`) is pure so it can be unit-tested without a browser.
  */
 
 export type JobStepView = JobStep & { data?: Record<string, unknown> };
@@ -40,13 +41,26 @@ export type JobEventsState = {
   lastEventAt: number | null;
 };
 
-type EventBody = { seq?: number; stepKey?: string | null; message?: string; data?: Record<string, unknown> | null; at?: string };
-type SnapshotBody = { id: string; type?: string; status: string; steps?: JobStep[] };
+export type JobEventBody = { seq?: number; stepKey?: string | null; message?: string; data?: Record<string, unknown> | null; at?: string };
+export type JobSnapshotBody = { id: string; type?: string; status: string; steps?: JobStep[] };
+export type JobEventName = "snapshot" | JobEventKind;
 
 const TERMINAL = new Set(["SUCCEEDED", "FAILED", "CANCELLED"]);
+const MAX_LOGS = 50;
 
-function initial(): JobEventsState {
-  return { connection: "idle", outcome: "running", jobStatus: null, steps: [], stepData: {}, logs: [], error: null, lastSeq: 0, lastEventAt: null };
+export function initialJobEventsState(opts: { initialSteps?: JobStep[]; initialStatus?: string | null } = {}): JobEventsState {
+  const status = opts.initialStatus ?? null;
+  return {
+    connection: "idle",
+    outcome: status === "SUCCEEDED" ? "succeeded" : status === "FAILED" || status === "CANCELLED" ? "failed" : "running",
+    jobStatus: status,
+    steps: opts.initialSteps ?? [],
+    stepData: {},
+    logs: [],
+    error: status === "FAILED" || status === "CANCELLED" ? "The analysis stopped before finishing." : null,
+    lastSeq: 0,
+    lastEventAt: null,
+  };
 }
 
 function setStep(steps: JobStepView[], key: string, patch: Partial<JobStepView>, labelFallback?: string): JobStepView[] {
@@ -55,13 +69,70 @@ function setStep(steps: JobStepView[], key: string, patch: Partial<JobStepView>,
   return steps.map((s, i) => (i === idx ? { ...s, ...patch } : s));
 }
 
+function mergeData(state: JobEventsState, key: string, incoming: Record<string, unknown> | null | undefined) {
+  const data = incoming ? { ...(state.stepData[key] ?? {}), ...incoming } : state.stepData[key];
+  const stepData = data ? { ...state.stepData, [key]: data } : state.stepData;
+  return { data, stepData };
+}
+
+function touch(state: JobEventsState, body: JobEventBody, now: number): JobEventsState {
+  return { ...state, lastSeq: Math.max(state.lastSeq, body.seq ?? 0), lastEventAt: now };
+}
+
+/** Pure fold of one SSE event into the checklist state. `now` is injectable for tests. */
+export function applyJobEvent(state: JobEventsState, name: JobEventName, body: JobEventBody | JobSnapshotBody | null, now = Date.now()): JobEventsState {
+  if (name === "snapshot") {
+    const snap = body as JobSnapshotBody | null;
+    if (!snap) return state;
+    const steps = Array.isArray(snap.steps) && snap.steps.length ? snap.steps.map((st) => ({ ...st, data: state.stepData[st.key] })) : state.steps;
+    const next: JobEventsState = { ...state, connection: "open", jobStatus: snap.status, steps, lastEventAt: now };
+    if (TERMINAL.has(snap.status)) {
+      return { ...next, connection: "closed", outcome: snap.status === "SUCCEEDED" ? "succeeded" : "failed", error: snap.status === "SUCCEEDED" ? null : (state.error ?? "The analysis stopped before finishing.") };
+    }
+    return next;
+  }
+
+  const b = (body ?? {}) as JobEventBody;
+  switch (name) {
+    case "step_started": {
+      if (!b.stepKey) return state;
+      return touch({ ...state, steps: setStep(state.steps, b.stepKey, { status: "running", detail: undefined, startedAt: b.at }, b.message) }, b, now);
+    }
+    case "step_progress": {
+      if (!b.stepKey) return state;
+      const { data, stepData } = mergeData(state, b.stepKey, b.data);
+      return touch({ ...state, stepData, steps: setStep(state.steps, b.stepKey, { status: "running", detail: b.message, data }) }, b, now);
+    }
+    case "step_finished": {
+      if (!b.stepKey) return state;
+      const { data, stepData } = mergeData(state, b.stepKey, b.data);
+      return touch({ ...state, stepData, steps: setStep(state.steps, b.stepKey, { status: "done", detail: b.message, finishedAt: b.at, data }) }, b, now);
+    }
+    case "step_failed": {
+      if (!b.stepKey) return state;
+      return touch({ ...state, steps: setStep(state.steps, b.stepKey, { status: "failed", detail: b.message, finishedAt: b.at }) }, b, now);
+    }
+    case "step_skipped": {
+      if (!b.stepKey) return state;
+      return touch({ ...state, steps: setStep(state.steps, b.stepKey, { status: "skipped", detail: b.message, finishedAt: b.at }) }, b, now);
+    }
+    case "log": {
+      const line: JobLogLine = { seq: b.seq ?? 0, message: b.message ?? "", at: b.at ?? new Date(now).toISOString(), data: b.data ?? undefined };
+      return touch({ ...state, logs: [...state.logs.slice(-(MAX_LOGS - 1)), line] }, b, now);
+    }
+    case "job_finished":
+      return touch({ ...state, jobStatus: "SUCCEEDED", outcome: "succeeded", error: null, connection: "closed" }, b, now);
+    case "job_failed":
+      return touch({ ...state, jobStatus: "FAILED", outcome: "failed", error: b.message ?? "The analysis failed.", connection: "closed" }, b, now);
+    default:
+      return state;
+  }
+}
+
+const EVENT_NAMES: JobEventName[] = ["snapshot", "step_started", "step_progress", "step_finished", "step_failed", "step_skipped", "log", "job_finished", "job_failed"];
+
 export function useJobEvents(jobId: string | null, opts: { initialSteps?: JobStep[]; initialStatus?: string | null } = {}) {
-  const [state, setState] = useState<JobEventsState>(() => ({
-    ...initial(),
-    steps: opts.initialSteps ?? [],
-    jobStatus: opts.initialStatus ?? null,
-    outcome: opts.initialStatus === "SUCCEEDED" ? "succeeded" : opts.initialStatus === "FAILED" ? "failed" : "running",
-  }));
+  const [state, setState] = useState<JobEventsState>(() => initialJobEventsState(opts));
   const sourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
@@ -70,89 +141,46 @@ export function useJobEvents(jobId: string | null, opts: { initialSteps?: JobSte
     let closed = false;
     const es = new EventSource(`/api/jobs/${encodeURIComponent(jobId)}/events`);
     sourceRef.current = es;
-    setState((s) => ({ ...s, connection: "connecting", error: null }));
+    setState((s) => (s.outcome === "running" ? { ...s, connection: "connecting" } : s));
 
-    const parse = <T,>(e: MessageEvent): T | null => {
+    const parse = (e: Event): JobEventBody | JobSnapshotBody | null => {
       try {
-        return JSON.parse(e.data) as T;
+        return JSON.parse((e as MessageEvent).data) as JobEventBody | JobSnapshotBody;
       } catch {
         return null;
       }
     };
-    const finish = (outcome: JobOutcome, error: string | null) => {
-      closed = true;
-      es.close();
-      setState((s) => ({ ...s, outcome, error, connection: "closed" }));
-    };
-    const touch = (s: JobEventsState, body: EventBody): JobEventsState => ({ ...s, lastSeq: body.seq ?? s.lastSeq, lastEventAt: Date.now() });
 
-    es.onopen = () => setState((s) => ({ ...s, connection: "open" }));
+    es.onopen = () => setState((s) => (s.connection === "closed" ? s : { ...s, connection: "open" }));
     es.onerror = () => {
       if (closed) return;
       setState((s) => (s.outcome === "running" ? { ...s, connection: "reconnecting" } : s));
     };
 
-    es.addEventListener("snapshot", (e) => {
-      const body = parse<SnapshotBody>(e as MessageEvent);
-      if (!body) return;
-      setState((s) => ({ ...s, connection: "open", jobStatus: body.status, steps: Array.isArray(body.steps) && body.steps.length ? body.steps.map((st) => ({ ...st, data: s.stepData[st.key] })) : s.steps, lastEventAt: Date.now() }));
-      if (TERMINAL.has(body.status)) finish(body.status === "SUCCEEDED" ? "succeeded" : "failed", body.status === "SUCCEEDED" ? null : "The analysis stopped before finishing.");
-    });
-
-    es.addEventListener("step_started", (e) => {
-      const b = parse<EventBody>(e as MessageEvent);
-      if (!b?.stepKey) return;
-      setState((s) => touch({ ...s, steps: setStep(s.steps, b.stepKey!, { status: "running", detail: undefined, startedAt: b.at }, b.message) }, b));
-    });
-    es.addEventListener("step_progress", (e) => {
-      const b = parse<EventBody>(e as MessageEvent);
-      if (!b?.stepKey) return;
-      setState((s) => {
-        const data = b.data ? { ...(s.stepData[b.stepKey!] ?? {}), ...b.data } : s.stepData[b.stepKey!];
-        const stepData = data ? { ...s.stepData, [b.stepKey!]: data } : s.stepData;
-        return touch({ ...s, stepData, steps: setStep(s.steps, b.stepKey!, { status: "running", detail: b.message, data }) }, b);
-      });
-    });
-    es.addEventListener("step_finished", (e) => {
-      const b = parse<EventBody>(e as MessageEvent);
-      if (!b?.stepKey) return;
-      setState((s) => {
-        const data = b.data ? { ...(s.stepData[b.stepKey!] ?? {}), ...b.data } : s.stepData[b.stepKey!];
-        const stepData = data ? { ...s.stepData, [b.stepKey!]: data } : s.stepData;
-        return touch({ ...s, stepData, steps: setStep(s.steps, b.stepKey!, { status: "done", detail: b.message, finishedAt: b.at, data }) }, b);
-      });
-    });
-    es.addEventListener("step_failed", (e) => {
-      const b = parse<EventBody>(e as MessageEvent);
-      if (!b?.stepKey) return;
-      setState((s) => touch({ ...s, steps: setStep(s.steps, b.stepKey!, { status: "failed", detail: b.message, finishedAt: b.at }) }, b));
-    });
-    es.addEventListener("step_skipped", (e) => {
-      const b = parse<EventBody>(e as MessageEvent);
-      if (!b?.stepKey) return;
-      setState((s) => touch({ ...s, steps: setStep(s.steps, b.stepKey!, { status: "skipped", detail: b.message, finishedAt: b.at }) }, b));
-    });
-    es.addEventListener("log", (e) => {
-      const b = parse<EventBody>(e as MessageEvent);
-      if (!b) return;
-      setState((s) => touch({ ...s, logs: [...s.logs.slice(-49), { seq: b.seq ?? 0, message: b.message ?? "", at: b.at ?? new Date().toISOString(), data: b.data ?? undefined }] }, b));
-    });
-    es.addEventListener("job_finished", (e) => {
-      const b = parse<EventBody>(e as MessageEvent);
-      setState((s) => touch({ ...s, jobStatus: "SUCCEEDED" }, b ?? {}));
-      finish("succeeded", null);
-    });
-    es.addEventListener("job_failed", (e) => {
-      const b = parse<EventBody>(e as MessageEvent);
-      setState((s) => touch({ ...s, jobStatus: "FAILED" }, b ?? {}));
-      finish("failed", b?.message ?? "The analysis failed.");
+    const handlers = EVENT_NAMES.map((name) => {
+      const handler = (e: Event) => {
+        const body = parse(e);
+        setState((s) => {
+          const next = applyJobEvent(s, name, body);
+          if (next.outcome !== "running" && !closed) {
+            closed = true;
+            es.close();
+          }
+          return next;
+        });
+      };
+      es.addEventListener(name, handler);
+      return [name, handler] as const;
     });
 
     return () => {
       closed = true;
+      for (const [name, handler] of handlers) es.removeEventListener(name, handler);
       es.close();
       sourceRef.current = null;
     };
+    // The initial steps/status only seed the very first render; the stream is the source of truth after that.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
   return useMemo(() => state, [state]);

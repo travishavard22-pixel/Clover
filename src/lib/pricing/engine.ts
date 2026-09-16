@@ -35,7 +35,7 @@ export const CONDITION_MULTIPLIERS: Record<ConditionGrade, number> = {
   FOR_PARTS: 0.3,
 };
 
-const LOT_REGEX = /\b(lot of|job lot|bundle of|bundle|wholesale|bulk|\d+\s*(?:pcs|pieces|pack|units|count)|x\s?\d{1,2}\b|set of \d+)/i;
+const LOT_REGEX = /\b(lot of|job lot|bundle of|bundle|wholesale|bulk|\d+\s*(?:pcs|pieces|pack|units|count)\b|x\s?\d{1,2}\b|set of \d+)/i;
 const FOR_PARTS_REGEX = /\b(for parts|parts only|not working|as-?is|broken|needs repair|untested lot)\b/i;
 
 const STOPWORDS = new Set(["the", "a", "an", "of", "and", "with", "for", "in", "on", "to", "by", "or", "new", "used", "vintage", "rare", "nice", "great", "excellent", "condition", "free", "shipping", "ship", "fast", "oem", "genuine", "authentic", "original", "look", "wow"]);

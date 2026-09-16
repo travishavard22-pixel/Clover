@@ -72,10 +72,22 @@ export type BuildProvenanceInput = {
   createdAt?: Date;
 };
 
+/**
+ * Badge text per render path. Every composite is labelled "AI background": a trained model decided
+ * which pixels stayed (the mask) and the background is not the one the camera saw, even when it was
+ * rendered locally. The XMP description says whether a generative model was involved.
+ */
+export const LABEL_BY_PATH: Record<RenderPath, string> = {
+  composite: "AI background",
+  enhance: "Enhancement only",
+  detail: "Detail crop",
+  condition: "Condition",
+};
+
 export function buildProvenance(input: BuildProvenanceInput): StudioProvenance {
   const aiGenerated = input.path === "composite" && (input.segmentationProvider !== null || input.generatorProvider !== null);
   const itemPixels: StudioProvenance["itemPixels"] = input.path === "detail" ? "resampled" : input.path === "composite" && input.scale !== undefined && Math.abs(input.scale - 1) > 1e-6 ? "scaled" : "preserved";
-  const label = input.path === "composite" ? (input.generatorProvider ? "AI background" : "AI background") : input.path === "enhance" ? "Enhancement only" : input.path === "detail" ? "Detail crop" : "Condition";
+  const label = LABEL_BY_PATH[input.path];
   const description = describeForXmp(input.path, input.generatorProvider, input.colourBalanced);
   return {
     pipeline: "clover-studio/1",
