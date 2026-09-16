@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import sharp from "sharp";
 import { db, type Marketplace, type Prisma } from "../db";
 import { auth } from "../auth";
@@ -60,7 +62,7 @@ export async function seedDemoAccount(): Promise<{ email: string; items: number 
     const item = await createItem(user.id, { title });
     const shots = p.status === "DRAFT" ? 2 : 4;
     for (let i = 0; i < shots; i++) {
-      const bytes = await renderPlaceholder(p.hue + i * 12, i, entry.slug);
+      const bytes = (await demoPhoto(entry.slug, i)) ?? (await renderPlaceholder(p.hue + i * 12, i, entry.slug));
       await storeUploadedPhoto({ userId: user.id, itemId: item.id, bytes, label: ["Front", "Back", "Label", "Detail"][i] ?? null });
     }
     await db.item.update({ where: { id: item.id }, data: { acquisitionCost: p.cost || null, storageLocation: ["Shelf A", "Bin 3", "Closet", "Garage rack"][count % 4], acquiredAt: new Date(now - (90 + count * 3) * day) } });
@@ -171,6 +173,23 @@ async function ensureUser() {
     update: { onboardingComplete: true, onboardingStep: 8, city: "Austin", region: "TX", postalCode: "78704" },
   });
   return { id };
+}
+
+const DEMO_PHOTO_SHOTS = ["front", "back", "label", "detail"] as const;
+
+/**
+ * Realistic seller-style photo for a catalogue item, when one has been generated (see
+ * prisma/demo-photos/README.md). Missing files fall back to the abstract placeholder so the seed
+ * always completes, even on a checkout without the image set.
+ */
+async function demoPhoto(slug: string, shot: number): Promise<Buffer | null> {
+  const name = DEMO_PHOTO_SHOTS[shot];
+  if (!name) return null;
+  try {
+    return await readFile(path.resolve(process.cwd(), "prisma", "demo-photos", slug, `${name}.jpg`));
+  } catch {
+    return null;
+  }
 }
 
 /** Abstract "product" placeholder: a soft shape on the studio background, distinct per item and shot. */
