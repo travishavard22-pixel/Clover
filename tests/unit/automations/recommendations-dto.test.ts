@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { toRecommendationDTO } from "@/lib/automations/recommendations";
 import type { Recommendation } from "@/lib/db";
 
-function rec(over: Partial<Recommendation> = {}): Recommendation & { item?: { title: string } | null } {
+function rec(over: Partial<Recommendation & { item: { title: string } | null }> = {}): Recommendation & { item?: { title: string } | null } {
   return {
     id: "r1",
     userId: "u1",
