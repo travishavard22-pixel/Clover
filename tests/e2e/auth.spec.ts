@@ -17,7 +17,7 @@ test("visitor lands on welcome and can reach sign-up", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /create your account/i })).toBeVisible();
 });
 
-test("sign up, sign out, sign in", async ({ page }) => {
+test("sign up, sign out, sign in", async ({ page, context }) => {
   const email = unique();
   await page.goto("/sign-up");
   await page.getByLabel("Name").fill("Playwright Seller");
@@ -30,8 +30,8 @@ test("sign up, sign out, sign in", async ({ page }) => {
   await page.goto("/home");
   await expect(page).toHaveURL(/\/onboarding/);
 
-  // Sign out via API (UI menu is exercised in the shell spec) and sign back in.
-  await page.request.post("/api/auth/sign-out", { headers: { origin: process.env.APP_URL ?? "http://127.0.0.1:3100" } });
+  // Drop the session cookie (the sign-out menu is exercised in the shell spec) and sign back in.
+  await context.clearCookies();
   await page.goto("/sign-in");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("correct-horse-battery");
