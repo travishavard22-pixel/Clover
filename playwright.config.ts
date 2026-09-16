@@ -11,6 +11,8 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "list",
   use: {
     baseURL: `http://127.0.0.1:${port}`,
+    // In sandboxed environments Chromium is preinstalled; point at it instead of downloading.
+    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : undefined,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },

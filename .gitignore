@@ -14,3 +14,4 @@ test-results
 /generated
 .next-*
 tsconfig.tsbuildinfo
+.scratch
