@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLOVER_APP_URL: ${{ vars.CLOVER_APP_URL }}
+      GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -27,8 +28,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: apps/mobile
       - name: Firebase config for push notifications (when the secret exists)
-        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
-        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > apps/mobile/android/app/google-services.json
+        if: ${{ env.GOOGLE_SERVICES_JSON != '' }}
+        run: printf "%s" "$GOOGLE_SERVICES_JSON" | base64 -d > apps/mobile/android/app/google-services.json
       - run: pnpm exec cap sync android
         working-directory: apps/mobile
       - run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
