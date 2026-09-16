@@ -206,14 +206,21 @@ interface and return `REQUIRES_USER_ACTION` with a checklist instead of calling 
 
 ## 10. Testing strategy
 
-- **Unit (vitest):** pricing engine, fee netting, condition mapping, listing transforms
-  (title truncation, marketplace limits), encryption, job runner state machine, schema
-  validation, demo providers determinism.
-- **Integration (vitest + Postgres):** repositories, job worker end-to-end in Demo mode,
-  auth-protected route handlers, rate limiter.
-- **E2E (Playwright):** sign-up → onboarding → upload → analysis → review → publish (Demo) →
-  inventory → offer → sold; keyboard navigation and reduced-motion checks; axe scan on key pages.
-- **Contrast check script** over the token file for both themes.
+- **Unit (vitest, `tests/unit`):** pricing engine (similarity gate, IQR trim, condition and time
+  weighting, bootstrap band, fee netting), condition mapping, listing composition, transforms and
+  the self-check against item facts, AI schemas and the deterministic Demo provider, studio mask
+  and compositor, marketplace registry and rendering, offer advice, automation rules,
+  recommendations, copilot tools, inventory computations, crypto, money, SKU and signed URLs.
+- **Integration (vitest + Postgres, `tests/integration`):** the durable job queue and runner
+  (claim, retry, step events) and the Postgres rate limiter.
+- **E2E (Playwright, `tests/e2e`, desktop and mobile projects):** sign-up → sign-out → sign-in and
+  weak-password errors; security headers, CSP and the signed file route; protected APIs refusing
+  anonymous calls; seeded demo flows across home, inventory filters, insights tables,
+  notifications, sell and welcome; upload → analysis → review through the real job pipeline in
+  Demo mode. A `setup` project signs in once and shares the session.
+- **Contrast check script** (`pnpm check:contrast`) over the token file for both themes.
+- **CI** runs typecheck, lint, unit and integration tests, the contrast check and a production
+  build, then the end-to-end suite against a Postgres service.
 
 ## 11. Repository layout
 

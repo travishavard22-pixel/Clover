@@ -43,6 +43,25 @@ Add `ANTHROPIC_API_KEY` for live AI, eBay keys for live publishing, and a studio
 | `pnpm test:e2e` | Playwright end-to-end in Demo mode |
 | `pnpm db:migrate` / `db:deploy` / `db:seed` / `db:studio` | Prisma |
 
+## Development notes
+
+- **Environment loading.** `next dev` reads `.env` itself. The worker (`pnpm worker`) and the seed
+  (`pnpm db:seed`) run under `tsx`, so they load `.env` through `src/lib/env-file.ts`; CI provides
+  variables directly and needs no file.
+- **Dev origins.** `next.config.ts` allows `127.0.0.1` and `localhost` as dev origins and
+  `src/lib/auth.ts` trusts both loopback hosts outside production, so the app works whichever
+  host you open. In production only `APP_URL` is trusted.
+- **CSP.** `src/proxy.ts` issues a per-request nonce and sets the Content-Security-Policy; the
+  theme bootstrap script in `src/app/layout.tsx` is the only inline script and carries that nonce.
+- **Route types.** `pnpm typecheck` reads the route types Next generates under `.next/types`;
+  run `pnpm exec next typegen` (or `pnpm dev`/`pnpm build`) first if the folder is missing.
+  `NEXT_DIST_DIR` moves the build folder so several dev servers can share one checkout.
+- **Lint.** ESLint is pinned to 9.x until `eslint-plugin-react` supports ESLint 10. The React
+  Compiler rule `react-hooks/set-state-in-effect` is a warning (see `eslint.config.mjs`).
+- **End-to-end tests.** Playwright starts `next dev` on `E2E_PORT` (default 3100) in Demo mode,
+  seeds the demo account, signs in once in a `setup` project and shares the session with the
+  desktop and mobile projects. Set `PLAYWRIGHT_CHROMIUM_PATH` to use a preinstalled Chromium.
+
 ## Documentation
 
 - `docs/research/` — UI/UX trends, competitive analysis, marketplace API feasibility, AI pipeline & pricing research (with sources).
