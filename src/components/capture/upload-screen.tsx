@@ -37,7 +37,9 @@ export function UploadScreen({ itemId, existingCount = 0 }: { itemId: string | n
   const [announce, setAnnounce] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const pickedRef = useRef(picked);
-  pickedRef.current = picked;
+  useEffect(() => {
+    pickedRef.current = picked;
+  }, [picked]);
 
   const limit = MAX_PHOTOS_PER_ITEM - existingCount;
   const remaining = Math.max(0, limit - picked.length);

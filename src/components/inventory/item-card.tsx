@@ -52,7 +52,6 @@ export const ItemCard = forwardRef<HTMLElement, ItemCardProps>(function ItemCard
       tabIndex={tabIndex}
       onFocus={onFocus}
       aria-label={`${item.title}, ${item.status.toLowerCase().replace("_", " ")}${price !== null ? `, ${(price / 100).toFixed(2)} dollars` : ""}`}
-      aria-selected={selectionMode ? selected : undefined}
       data-selected={selected || undefined}
       className={cn(
         "group relative flex cursor-pointer flex-col overflow-hidden rounded-sm border bg-surface-raised text-left outline-none transition-[border-color,box-shadow] duration-(--dur-fast)",

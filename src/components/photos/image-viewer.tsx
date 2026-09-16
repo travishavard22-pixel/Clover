@@ -63,7 +63,8 @@ export function ImageViewer({ photos, index, open, onClose, onIndexChange }: { p
     [onIndexChange, visible.length],
   );
 
-  const zoom = useZoomPan({ onSwipe: (dir) => go(current + dir), enabled: !compare });
+  const zoomContainerRef = useRef<HTMLDivElement | null>(null);
+  const zoom = useZoomPan(zoomContainerRef, { onSwipe: (dir) => go(current + dir), enabled: !compare });
   const { reset } = zoom;
   useEffect(() => reset(), [photo?.id, layer, reset]);
 
@@ -205,7 +206,7 @@ export function ImageViewer({ photos, index, open, onClose, onIndexChange }: { p
                 <CompareSlider before={source.url} after={photo.url} beforeLabel="Original" afterLabel={generatedLabel} alt={alt} className="max-h-full w-full max-w-5xl" aspect={photo.width / photo.height} />
               </div>
             ) : (
-              <div ref={zoom.containerRef} className="relative size-full overflow-hidden" {...zoom.handlers}>
+              <div ref={zoomContainerRef} className="relative size-full overflow-hidden" {...zoom.handlers}>
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div key={shown.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0.08 : 0.16 }} className="absolute inset-0 flex items-center justify-center p-2 sm:p-6">
                     <div style={zoom.style} className="flex max-h-full max-w-full items-center justify-center will-change-transform">

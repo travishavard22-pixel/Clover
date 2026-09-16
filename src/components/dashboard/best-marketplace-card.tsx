@@ -19,7 +19,7 @@ export function BestMarketplaceCard({ m }: { m: DashboardMetrics }) {
         </Link>
       </div>
       {!rev ? (
-        <p className="mt-3 text-sm text-secondary">Once something sells, you'll see which marketplace earns the most and sells fastest.</p>
+        <p className="mt-3 text-sm text-secondary">Once something sells, you&apos;ll see which marketplace earns the most and sells fastest.</p>
       ) : (
         <dl className="mt-3 space-y-3">
           <div>

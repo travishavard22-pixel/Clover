@@ -1,11 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./helpers";
 
 test.describe("seeded demo account", () => {
-  test.beforeEach(async ({ page }) => {
-    await signIn(page);
-  });
-
   test("home leads with what needs attention and labels estimates", async ({ page }) => {
     await page.goto("/home");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/Good (morning|afternoon|evening)/);

@@ -154,7 +154,6 @@ export function CopilotWorkspace({ initialThreads, initialThreadId, initialMessa
         patchMessage(assistantLocal, (m) => ({ ...m, status: "error", error: errorMessage(err, "The copilot could not answer. Your message is saved — try again."), statusLine: undefined }));
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [activeId, send, syncUrl, refreshThreads],
   );
 

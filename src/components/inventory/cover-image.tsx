@@ -15,6 +15,7 @@ export function CoverImage({ cover, alt, className, sizes = "thumb", muted }: { 
     );
   }
   return (
+    // eslint-disable-next-line @next/next/no-img-element -- signed same-origin URL
     <img
       src={sizes === "web" ? cover.url : cover.thumbUrl}
       alt={alt}

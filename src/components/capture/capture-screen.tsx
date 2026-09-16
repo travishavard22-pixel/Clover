@@ -32,7 +32,8 @@ type Flyer = { key: number; url: string; from: { x: number; y: number; w: number
  */
 export function CaptureScreen({ itemId, existingCount = 0 }: { itemId: string | null; existingCount?: number }) {
   const router = useRouter();
-  const camera = useCamera();
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const camera = useCamera(videoRef);
   const reduce = useReducedMotion();
   const [phase, setPhase] = useState<Phase>("intro");
   const [starting, setStarting] = useState(false);
@@ -49,7 +50,9 @@ export function CaptureScreen({ itemId, existingCount = 0 }: { itemId: string | 
   const trayEndRef = useRef<HTMLDivElement | null>(null);
   const shutterLock = useRef(false);
   const shotsRef = useRef(shots);
-  shotsRef.current = shots;
+  useEffect(() => {
+    shotsRef.current = shots;
+  }, [shots]);
 
   const closeHref = itemId ? `/sell/review/${itemId}` : "/sell";
   const uploadHref = itemId ? `/sell/upload?item=${encodeURIComponent(itemId)}` : "/sell/upload";
@@ -257,7 +260,7 @@ export function CaptureScreen({ itemId, existingCount = 0 }: { itemId: string | 
 
       {/* The video element is always mounted so the stream can attach before the camera phase renders. */}
       <div ref={stageRef} className={cn("absolute inset-0 overflow-hidden bg-black transition-opacity duration-(--dur-base)", phase === "camera" ? "opacity-100" : "pointer-events-none opacity-0")}>
-        <video ref={camera.videoRef} playsInline muted autoPlay className="absolute inset-0 size-full object-cover" style={mirrored ? { transform: "scaleX(-1)" } : undefined} aria-label="Live camera preview" />
+        <video ref={videoRef} playsInline muted autoPlay className="absolute inset-0 size-full object-cover" style={mirrored ? { transform: "scaleX(-1)" } : undefined} aria-label="Live camera preview" />
         {phase === "camera" && <FramingGuide />}
         <AnimatePresence>{flash > 0 && <motion.div key={flash} className="pointer-events-none absolute inset-0 bg-white" initial={{ opacity: reduce ? 0.35 : 0.75 }} animate={{ opacity: 0 }} transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }} aria-hidden />}</AnimatePresence>
       </div>

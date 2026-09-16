@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+// These specs exercise sign-up/sign-in and anonymous access, so they start without a session.
+test.use({ storageState: { cookies: [], origins: [] } });
+import { waitForAuthForm } from "./helpers";
+
 const unique = () => `e2e-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
 
 test("health endpoint reports database and capabilities", async ({ request }) => {
@@ -19,7 +23,8 @@ test("visitor lands on welcome and can reach sign-up", async ({ page }) => {
 
 test("sign up, sign out, sign in", async ({ page, context }) => {
   const email = unique();
-  await page.goto("/sign-up");
+  await page.goto("/sign-up", { waitUntil: "networkidle" });
+  await waitForAuthForm(page);
   await page.getByLabel("Name").fill("Playwright Seller");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("correct-horse-battery");
@@ -32,7 +37,8 @@ test("sign up, sign out, sign in", async ({ page, context }) => {
 
   // Drop the session cookie (the sign-out menu is exercised in the shell spec) and sign back in.
   await context.clearCookies();
-  await page.goto("/sign-in");
+  await page.goto("/sign-in", { waitUntil: "networkidle" });
+  await waitForAuthForm(page);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("correct-horse-battery");
   await page.getByRole("button", { name: /sign in/i }).click();
@@ -40,7 +46,8 @@ test("sign up, sign out, sign in", async ({ page, context }) => {
 });
 
 test("rejects weak passwords with a visible, accessible error", async ({ page }) => {
-  await page.goto("/sign-up");
+  await page.goto("/sign-up", { waitUntil: "networkidle" });
+  await waitForAuthForm(page);
   await page.getByLabel("Email").fill(unique());
   await page.getByLabel("Password").fill("short");
   await page.getByRole("button", { name: /create account/i }).click();

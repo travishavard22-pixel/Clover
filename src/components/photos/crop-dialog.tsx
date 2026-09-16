@@ -66,7 +66,7 @@ export function CropDialog({ photo, open, onOpenChange, onApply, busy }: { photo
     if (r) setRect(fitAspect(rect, r, bounds));
   };
 
-  const onPointerDown = (kind: Drag["kind"]) => (e: React.PointerEvent) => {
+  const startDrag = (kind: Drag["kind"], e: React.PointerEvent) => {
     if (busy) return;
     e.preventDefault();
     e.stopPropagation();
@@ -144,7 +144,7 @@ export function CropDialog({ photo, open, onOpenChange, onApply, busy }: { photo
                   aria-label={`Crop frame, ${describeRect(rect)}. Use arrow keys to move, Alt plus arrows to resize.`}
                   aria-describedby={`${id}-help`}
                   onKeyDown={onKeyDown}
-                  onPointerDown={onPointerDown("move")}
+                  onPointerDown={(e) => startDrag("move", e)}
                   className="absolute cursor-move rounded-[2px] outline-none ring-2 ring-white/90 focus-visible:ring-accent"
                   style={{ left: display.left, top: display.top, width: display.width, height: display.height, boxShadow: "0 0 0 9999px var(--scrim-strong)" }}
                 >
@@ -158,7 +158,7 @@ export function CropDialog({ photo, open, onOpenChange, onApply, busy }: { photo
                       key={h}
                       role="presentation"
                       aria-hidden
-                      onPointerDown={onPointerDown(h)}
+                      onPointerDown={(e) => startDrag(h, e)}
                       style={{ cursor: HANDLE_CURSOR[h] }}
                       className={cn(
                         "absolute size-6 touch-none",

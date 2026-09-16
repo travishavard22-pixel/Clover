@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+// These specs exercise sign-up/sign-in and anonymous access, so they start without a session.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test("security headers and CSP are present", async ({ request }) => {
   const res = await request.get("/sign-in");
   const h = res.headers();

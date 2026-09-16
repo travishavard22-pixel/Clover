@@ -4,7 +4,6 @@ import { conditionLines, includedLines, parseDescription, renderDescription, shi
 import { checkListingClaims, type Facts } from "../listings/self-check";
 import { applyLength, applyTone, dedupe, type TransformContext } from "../listings/transforms";
 import { fitDescription, fitTitle } from "../marketplaces/registry";
-import { gradeLabel } from "../pricing/condition";
 import { PROMPT_VERSION } from "./prompts";
 import type { AiProvider, CopilotEvent, CopilotTool, CopilotTurn, IdentifyInput, IdentifyOutput, OfferAdviceInput, StudioQaInput, WriteListingInput, WriteListingOutput } from "./provider";
 import { tierFromConfidence, type EvidencedField, type ItemProfile, type ListingCopy, type OfferAdvice, type SelfCheck, type StudioQa } from "./schemas";
@@ -109,7 +108,7 @@ export class DemoAiProvider implements AiProvider {
       }
     }
 
-    const text = composeCopilotAnswer(plan, results, input.tools);
+    const text = composeCopilotAnswer(plan, results, input.tools, last);
     for (const delta of chunkText(text)) yield { type: "text", delta };
     yield { type: "done", text, toolTrace };
   }
@@ -331,6 +330,9 @@ export function adviseOnOffer(input: OfferAdviceInput): OfferAdvice {
 type CopilotPlan = { intent: string; calls: Array<{ name: string; input: Record<string, unknown> }>; note: string | null };
 
 const INTENTS: Array<{ intent: string; test: RegExp; tools: string[] }> = [
+  { intent: "prioritise", test: /sell first|prioriti|start with|which (one|item) first/i, tools: ["list_items", "get_inventory_summary"] },
+  { intent: "overpriced", test: /over-?priced|too (high|expensive)|priced too/i, tools: ["list_items", "get_inventory_summary"] },
+  { intent: "projection", test: /how much (could|can|would) i make|if everything sells|worth in total|everything sold/i, tools: ["list_items", "get_inventory_summary"] },
   { intent: "stale", test: /\b(stale|not selling|hasn'?t sold|sitting|old listings?|no (offers|views)|reprice|price drop|lower the price)\b/i, tools: ["get_stale_listings", "get_inventory_summary"] },
   { intent: "offers", test: /\b(offers?|counter|buyer|negotiat)/i, tools: ["get_offers"] },
   { intent: "performance", test: /\b(marketplace|ebay|facebook|offerup|nextdoor|where (should|do)|performing|performance|sells? best|best channel)\b/i, tools: ["get_marketplace_performance", "get_inventory_summary"] },
@@ -395,9 +397,109 @@ function recordName(rec: Record<string, unknown>): string {
   return `${name ?? "item"}${money ? ` ${formatValue(money[0], money[1]) ?? ""}` : ""}${status}`;
 }
 
-export function composeCopilotAnswer(plan: CopilotPlan, results: Array<{ name: string; result: unknown; error: string | null }>, tools: CopilotTool[]): string {
+type ToolResult = { name: string; result: unknown; error: string | null };
+type Rec = Record<string, unknown>;
+const money = (cents: unknown) => (typeof cents === "number" ? `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : "—");
+const asRecs = (v: unknown): Rec[] => (Array.isArray(v) ? (v.filter((x) => x && typeof x === "object") as Rec[]) : []);
+const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const resultOf = (results: ToolResult[], name: string): Rec | null => {
+  const r = results.find((x) => x.name === name && !x.error);
+  return r && r.result && typeof r.result === "object" && !Array.isArray(r.result) ? (r.result as Rec) : null;
+};
+const daysSince = (iso: unknown): number | null => (typeof iso === "string" && !Number.isNaN(Date.parse(iso)) ? Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 86_400_000)) : null);
+
+/**
+ * Direct answers for the questions the product promises to handle. Each one reads the tool
+ * results it needs and states facts vs estimates explicitly. Returns null when the question does
+ * not fit, so the generic summariser below takes over.
+ */
+function directAnswer(message: string, results: ToolResult[]): string | null {
+  const listed = asRecs(resultOf(results, "list_items")?.items);
+  const summary = resultOf(results, "get_inventory_summary");
+  const unsold = listed.filter((i) => !["SOLD", "SHIPPED", "COMPLETED", "ARCHIVED"].includes(String(i.status)));
+
+  if (/\bover-?priced\b|too (high|expensive)|priced too/i.test(message)) {
+    const rows = unsold
+      .map((i) => ({ i, price: num(i.listPriceCents) ?? num(i.listPrice), est: num((i.estimate as Rec | null)?.recommendedCents) ?? num(i.estimatedValue) }))
+      .filter((r): r is { i: Rec; price: number; est: number } => r.price !== null && r.est !== null && r.est > 0)
+      .map((r) => ({ ...r, ratio: r.price / r.est }))
+      .filter((r) => r.ratio > 1.08)
+      .sort((a, b) => b.ratio - a.ratio);
+    if (listed.length === 0) return null;
+    if (rows.length === 0) return `None of your ${unsold.length} unsold items are priced more than 8% above Clover's recommended price (estimate). If something isn't moving, the cause is more likely photos or the listing than the price.`;
+    const lines = rows.slice(0, 6).map((r) => `- ${r.i.title}: listed at ${money(r.price)} vs a recommended ${money(r.est)} (estimate) — ${Math.round((r.ratio - 1) * 100)}% above`);
+    return `${rows.length} item${rows.length === 1 ? " is" : "s are"} priced above Clover's recommendation:\n${lines.join("\n")}\n\nRecommended prices are estimates from comparable listings. A quick way to test the market: drop to the recommended price for two weeks before going lower.`;
+  }
+
+  if (/sell first|prioriti|start with|which (one|item) first/i.test(message)) {
+    const ranked = unsold
+      .map((i) => ({ i, value: num((i.estimate as Rec | null)?.recommendedCents) ?? num(i.listPriceCents) ?? num(i.estimatedValue) ?? 0, days: num(i.daysOnMarket) ?? daysSince(i.listedAt) }))
+      .sort((a, b) => b.value - a.value);
+    if (ranked.length === 0) return null;
+    const ready = ranked.filter((r) => r.i.status === "READY" || r.i.status === "DRAFT");
+    const top = (ready.length ? ready : ranked).slice(0, 5);
+    const lines = top.map((r, n) => `${n + 1}. ${r.i.title} — ${money(r.value)} (estimate)${r.i.status === "READY" ? ", ready to publish" : r.i.status === "DRAFT" ? ", still a draft" : r.days !== null ? `, listed ${r.days} days` : ""}`);
+    return `${ready.length ? "Start with what's worth the most and isn't live yet:" : "Everything is already listed; these carry the most value:"}\n${lines.join("\n")}\n\nValues are Clover's estimates, not sales. Publishing the top ${Math.min(3, top.length)} first puts the most money in play with the least effort.`;
+  }
+
+  if (/how much (could|can|would) i make|if everything sells|total (value|worth)|worth in total|everything sold/i.test(message)) {
+    const withValue = unsold.map((i) => num(i.listPriceCents) ?? num((i.estimate as Rec | null)?.recommendedCents) ?? 0);
+    const gross = withValue.reduce((a, b) => a + b, 0);
+    const estOnly = unsold.map((i) => num((i.estimate as Rec | null)?.recommendedCents) ?? num(i.listPriceCents) ?? 0).reduce((a, b) => a + b, 0);
+    if (unsold.length === 0) return null;
+    const cost = unsold.map((i) => num(i.acquisitionCostCents) ?? num(i.acquisitionCost) ?? 0).reduce((a, b) => a + b, 0);
+    const feeGuess = Math.round(gross * 0.11);
+    return `If all ${unsold.length} unsold items sold at their list prices you'd gross ${money(gross)} (estimate); at Clover's recommended prices, ${money(estOnly)} (estimate). After roughly 11% in marketplace fees that's about ${money(gross - feeGuess)}${cost ? `, or ${money(gross - feeGuess - cost)} profit after the ${money(cost)} you paid for them` : ""}.\n\nThese are projections. Realised revenue so far: ${summary ? money(num(summary.revenueAllCents) ?? num(summary.revenueAll)) : "see Insights"}.`;
+  }
+
+  if (/hasn'?t sold|not (selling|sold)|stale|sitting/i.test(message)) {
+    const stale = resultOf(results, "get_stale_listings");
+    const items = asRecs(stale?.items);
+    if (!stale) return null;
+    if (items.length === 0) return `Nothing has gone stale: every live listing is under ${num(stale.days) ?? 14} days old or has had an offer.`;
+    const lines = items.slice(0, 6).map((i) => `- ${i.title} — listed ${num(i.daysListed) ?? daysSince(i.listedAt) ?? "?"} days at ${money(i.listPriceCents ?? i.listPrice)}${(i.estimate as Rec | null)?.quickSaleCents !== undefined ? `, quick-sale estimate ${money((i.estimate as Rec).quickSaleCents)}` : ""}${i.suggestedPriceCents ? `, suggested ${money(i.suggestedPriceCents)}` : ""}`);
+    return `${items.length} listing${items.length === 1 ? " has" : "s have"} been live ${num(stale.days) ?? 14}+ days with no offers:\n${lines.join("\n")}\n\nFor each, either refresh the photos and title or move toward the quick-sale estimate. Repricing is a proposal you confirm on the item page.`;
+  }
+
+  if (/marketplace|where (should|do)|best (channel|place)|perform/i.test(message)) {
+    const perf = resultOf(results, "get_marketplace_performance");
+    const rows = asRecs(perf?.marketplaces).filter((m) => (num(m.sold) ?? 0) > 0 || (num(m.active) ?? 0) > 0);
+    if (!perf) return null;
+    if (rows.length === 0) return "There are no sales or live listings to compare marketplaces yet. Once a few items sell, this will rank them by revenue and sell-through.";
+    const byRev = [...rows].sort((a, b) => (num(b.revenueCents) ?? 0) - (num(a.revenueCents) ?? 0));
+    const lines = byRev.map((m) => `- ${m.name}: ${money(m.revenueCents)} from ${num(m.sold) ?? 0} sold, ${num(m.active) ?? 0} live, sell-through ${Math.round((num(m.sellThrough) ?? 0) * 100)}%, fees ${Math.round((num(m.feeRate) ?? 0) * 100)}%`);
+    const best = byRev[0]!;
+    const category = /electronics|camera|keyboard|console|phone/i.test(message) ? " for that category" : "";
+    return `${best.name} has produced the most revenue${category}: ${money(best.revenueCents)} from ${num(best.sold) ?? 0} sale${num(best.sold) === 1 ? "" : "s"}.\n${lines.join("\n")}\n\nThese are your recorded sales (facts). Sell-through on small samples is noisy; fees are the marketplaces' published rates.`;
+  }
+
+  if (/accept|counter|offer/i.test(message)) {
+    const offers = asRecs(resultOf(results, "get_offers")?.offers).filter((o) => o.status === "PENDING" || o.status === undefined);
+    if (!resultOf(results, "get_offers")) return null;
+    if (offers.length === 0) return "You have no pending offers right now. When one arrives it shows up on the Offers page with a suggestion (accept, counter or decline) and the estimated profit after fees.";
+    const lines = offers.slice(0, 5).map((o) => {
+      const amt = num(o.amountCents) ?? num(o.amount);
+      const ask = num(o.askingCents) ?? num(o.originalPriceCents) ?? num(o.originalPrice);
+      const floor = num(o.floorPriceCents) ?? num(o.floorPrice);
+      const pct = num(o.percentBelowAsking) ?? (amt !== null && ask ? Math.round((1 - amt / ask) * 100) : null);
+      const verdict = amt !== null && floor !== null ? (amt >= floor ? "above your floor — accepting is reasonable" : "below your floor — counter or decline") : pct !== null && pct <= 12 ? "within 12% of asking — worth accepting" : "well under asking — counter";
+      return `- ${o.itemTitle ?? o.title ?? "Item"}: ${money(amt)} offered vs ${money(ask)} asking${pct !== null ? ` (${pct}% below)` : ""} on ${o.marketplace ?? "?"} — ${verdict}`;
+    });
+    return `${offers.length} pending offer${offers.length === 1 ? "" : "s"}:\n${lines.join("\n")}\n\nFloors and asking prices are your own numbers; Clover's suggested counter on each offer is an estimate. Accepting ends the item's other listings so it can't sell twice.`;
+  }
+  return null;
+}
+
+export function composeCopilotAnswer(plan: CopilotPlan, results: Array<{ name: string; result: unknown; error: string | null }>, tools: CopilotTool[], message = ""): string {
   const paras: string[] = [];
   const ok = results.filter((r) => !r.error);
+  const direct = ok.length ? directAnswer(message, results) : null;
+  if (direct) {
+    paras.push(direct);
+    if (plan.note) paras.push(plan.note);
+    paras.push("Demo copilot — answers are computed from your inventory; no language model was used.");
+    return paras.join("\n\n");
+  }
   if (ok.length === 0) {
     paras.push(plan.note ?? "I could not read your data for that question.");
     for (const r of results.filter((r) => r.error)) paras.push(`${labelOf(r.name)} failed: ${r.error}`);

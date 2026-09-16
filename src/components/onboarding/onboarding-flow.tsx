@@ -53,7 +53,7 @@ export function OnboardingFlow({ state, initialStep, firstName, demo }: { state:
   const [saving, setSaving] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const headingRef = useRef<HTMLDivElement>(null);
-  const keyboard = useRef(false);
+  const [keyboard, setKeyboard] = useState(false);
 
   const set = useCallback(<K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value })), []);
 
@@ -102,7 +102,7 @@ export function OnboardingFlow({ state, initialStep, firstName, demo }: { state:
   };
 
   const isLast = step === LAST_STEP;
-  const distance = reduce || keyboard.current ? 0 : 24;
+  const distance = reduce || keyboard ? 0 : 24;
   const variants = {
     enter: (d: 1 | -1) => ({ opacity: 0, x: d * distance }),
     center: { opacity: 1, x: 0 },
@@ -110,7 +110,7 @@ export function OnboardingFlow({ state, initialStep, firstName, demo }: { state:
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gutter pb-8" onKeyDownCapture={(e) => (keyboard.current = e.key === "Enter" || e.key === " ")} onPointerDownCapture={() => (keyboard.current = false)}>
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gutter pb-8" onKeyDownCapture={(e) => setKeyboard(e.key === "Enter" || e.key === " ")} onPointerDownCapture={() => setKeyboard(false)}>
       <div className="flex items-center justify-between py-4">
         <ProgressDots count={ONBOARDING_STEPS.length} current={step} labels={STEP_LABELS} onJump={(i) => void go(i)} />
         {demo && <DemoBadge />}

@@ -12,8 +12,7 @@ type TorchConstraints = MediaTrackConstraintSet & { torch?: boolean };
  * Camera lifecycle for the capture screen. Permission is requested only when `start()` is called
  * (after the seller taps the shutter or "Enable camera"), never on mount.
  */
-export function useCamera() {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+export function useCamera(videoRef: React.RefObject<HTMLVideoElement | null>) {
   const streamRef = useRef<MediaStream | null>(null);
   const [status, setStatus] = useState<CameraStatus>("idle");
   const [facing, setFacing] = useState<Facing>("environment");
@@ -32,7 +31,7 @@ export function useCamera() {
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setTorchOn(false);
-  }, []);
+  }, [videoRef]);
 
   const start = useCallback(
     async (nextFacing: Facing = facing) => {
@@ -81,7 +80,7 @@ export function useCamera() {
         return false;
       }
     },
-    [facing, stop],
+    [facing, stop, videoRef],
   );
 
   const flip = useCallback(async () => {
@@ -114,7 +113,7 @@ export function useCamera() {
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
     if (!blob) return null;
     return { blob, width: canvas.width, height: canvas.height };
-  }, []);
+  }, [videoRef]);
 
   // Mobile browsers end the stream when the tab is backgrounded; resume when it comes back.
   useEffect(() => {
@@ -129,5 +128,5 @@ export function useCamera() {
 
   useEffect(() => () => stop(), [stop]);
 
-  return { videoRef, status, error, facing, canFlip, torchSupported, torchOn, start, stop, flip, toggleTorch, capture };
+  return { status, error, facing, canFlip, torchSupported, torchOn, start, stop, flip, toggleTorch, capture };
 }

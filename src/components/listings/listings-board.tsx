@@ -183,6 +183,7 @@ function ListingsTable({ listings, onChanged }: { listings: ListingDTO[]; onChan
               <tr key={p.id} className="hover:bg-surface-sunken/60">
                 <td className="px-3 py-2">
                   <Link href={`/items/${l.item.id}/publish`} className="flex items-center gap-3 outline-none focus-visible:underline">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- signed same-origin URL */}
                     <span className="size-10 shrink-0 overflow-hidden rounded-xs bg-surface-sunken">{l.item.cover && <img src={l.item.cover.thumbUrl} alt="" width={40} height={40} className="h-full w-full object-cover" />}</span>
                     <span className="min-w-0">
                       <span className="block truncate font-medium text-primary">{l.item.title}</span>

@@ -27,9 +27,10 @@ export const auth = betterAuth({
     enabled: true,
     window: 60,
     max: 30,
+    // Tight in production; relaxed elsewhere so local development and the e2e suite are not throttled.
     customRules: {
-      "/sign-in/email": { window: 60, max: 8 },
-      "/sign-up/email": { window: 60, max: 5 },
+      "/sign-in/email": { window: 60, max: env.NODE_ENV === "production" ? 8 : 200 },
+      "/sign-up/email": { window: 60, max: env.NODE_ENV === "production" ? 5 : 100 },
     },
   },
   advanced: {

@@ -33,6 +33,7 @@ export function ListingCard({ listing, onChanged, index }: ListingCardProps) {
     >
       <Link href={hubHref} className="relative block aspect-[4/5] w-full overflow-hidden bg-surface-sunken outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-label={`Open the publish hub for ${item.title}`}>
         {item.cover ? (
+          // eslint-disable-next-line @next/next/no-img-element -- signed same-origin URL
           <img src={item.cover.thumbUrl} alt={item.title} width={item.cover.width} height={item.cover.height} loading="lazy" decoding="async" className={cn("h-full w-full object-cover transition-transform duration-(--dur-slow) ease-(--ease-out) group-hover:scale-[1.015]", sold && "saturate-[0.35] opacity-80")} />
         ) : (
           <span className="flex h-full items-center justify-center text-muted" role="img" aria-label="No photo yet">

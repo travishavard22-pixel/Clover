@@ -8,6 +8,8 @@ export default defineConfig({
   timeout: 90_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,
+  // One worker: the suite drives a single dev server that compiles routes on demand.
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
@@ -25,7 +27,9 @@ export default defineConfig({
     env: { ...process.env, CLOVER_DEMO_MODE: "1", PORT: String(port) },
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
+    // Signs in as the seeded demo seller once and shares the session with the flow specs.
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    { name: "desktop", use: { ...devices["Desktop Chrome"], storageState: "test-results/.auth/demo.json" }, dependencies: ["setup"] },
+    { name: "mobile", use: { ...devices["Pixel 7"], storageState: "test-results/.auth/demo.json" }, dependencies: ["setup"] },
   ],
 });

@@ -291,7 +291,7 @@ export function InventoryBrowser({ initial, initialFilters, hasAnyItems }: { ini
             <InventorySkeleton density="comfortable" count={items.length} />
           ) : density === "compact" ? (
             <div className="surface-card overflow-x-auto">
-              <table className="w-full text-left" aria-label="Inventory" aria-multiselectable>
+              <table className="w-full text-left" aria-label="Inventory">
                 <thead className="text-xs font-medium text-muted">
                   <tr className="border-b border-border-subtle">
                     <th scope="col" className="w-10 px-2 py-2">
@@ -330,7 +330,7 @@ export function InventoryBrowser({ initial, initialFilters, hasAnyItems }: { ini
               </table>
             </div>
           ) : (
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5" aria-label="Inventory" aria-multiselectable>
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5" aria-label="Inventory">
               {items.map((item, idx) => (
                 <li key={item.id} className="min-w-0">
                   <ItemCard

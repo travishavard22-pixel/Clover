@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import sharp from "sharp";
-import { signIn } from "./helpers";
 
 /**
  * End-to-end: upload a photo → review → analyze → live checklist → item page.
@@ -8,8 +7,6 @@ import { signIn } from "./helpers";
  */
 test("upload → analyze → review", async ({ page }) => {
   const request = page.request;
-  await signIn(page);
-
   // Create the item and upload a generated JPEG through the real API.
   const created = await request.post("/api/items", { data: { title: "Keychron K2 mechanical keyboard" } });
   expect(created.ok()).toBeTruthy();

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { signIn, signUp } from "@/lib/auth-client";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const router = useRouter();
@@ -13,6 +14,8 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Marks the form as interactive once React has hydrated; tests and progressive-enhancement checks read it.
+  const hydrated = useHydrated();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,7 +35,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5" noValidate>
+    <form onSubmit={submit} className="space-y-5" noValidate data-hydrated={hydrated ? "true" : "false"}>
       <div>
         <h1 className="display text-3xl">{mode === "sign-up" ? "Create your account" : "Welcome back"}</h1>
         <p className="mt-2 text-sm text-secondary">{mode === "sign-up" ? "Your first listing is about a minute away." : "Sign in to keep selling."}</p>

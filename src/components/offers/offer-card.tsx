@@ -94,6 +94,7 @@ export function OfferCard({ offer, onChanged, focused, index }: OfferCardProps) 
     >
       <div className="flex gap-3 sm:gap-4">
         <Link href={`/items/${offer.item.id}`} className="size-16 shrink-0 overflow-hidden rounded-xs bg-surface-sunken outline-none focus-visible:ring-2 focus-visible:ring-accent sm:size-20" aria-label={`Open ${offer.item.title}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- signed same-origin URL */}
           {offer.item.cover ? <img src={offer.item.cover.thumbUrl} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center text-muted"><ImageOff className="size-5" strokeWidth={1.5} aria-hidden /></span>}
         </Link>
         <div className="min-w-0 flex-1 space-y-3">

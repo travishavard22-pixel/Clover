@@ -134,7 +134,7 @@ export function MarkSoldDialog({ item, open, onClose, onSold }: { item: ItemList
                   <li key={p.id}>Clover will end the {MARKETPLACES[p.marketplace].name} listing through its API.</li>
                 ))}
                 {assisted.map((p) => (
-                  <li key={p.id}>You'll be asked to end the {MARKETPLACES[p.marketplace].name} listing yourself — Clover never operates that site for you.</li>
+                  <li key={p.id}>You&apos;ll be asked to end the {MARKETPLACES[p.marketplace].name} listing yourself — Clover never operates that site for you.</li>
                 ))}
               </ul>
             </div>

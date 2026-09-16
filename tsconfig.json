@@ -36,19 +36,12 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next*/types/**/*.ts",
-    ".next*/dev/types/**/*.ts",
-    ".next-lead/types/**/*.ts",
-    ".next-lead/dev/types/**/*.ts",
-    ".next-b/types/**/*.ts",
-    ".next-b/dev/types/**/*.ts",
-    ".next-d/types/**/*.ts",
-    ".next-d/dev/types/**/*.ts",
-    ".next-f/types/**/*.ts",
-    ".next-f/dev/types/**/*.ts"
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
+    ".next-*",
     "tests/e2e",
     "playwright.config.ts"
   ]

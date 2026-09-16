@@ -16,21 +16,22 @@ type Pointer = { x: number; y: number };
  * Pinch / wheel zoom with drag-to-pan for the image viewer, plus horizontal swipe detection when
  * the image is not zoomed. Works with mouse, trackpad, pen and touch through pointer events.
  */
-export function useZoomPan(opts: { onSwipe?: (direction: 1 | -1) => void; enabled?: boolean } = {}) {
+export function useZoomPan(containerRef: React.RefObject<HTMLDivElement | null>, opts: { onSwipe?: (direction: 1 | -1) => void; enabled?: boolean } = {}) {
   const enabled = opts.enabled ?? true;
   const [state, setState] = useState<ZoomPanState>({ scale: 1, x: 0, y: 0 });
   const [interacting, setInteracting] = useState(false);
   const stateRef = useRef(state);
-  stateRef.current = state;
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
   const pointers = useRef<Map<number, Pointer>>(new Map());
   const gesture = useRef<{ startScale: number; startDist: number; startX: number; startY: number; originX: number; originY: number; moved: boolean; swipeStart: Pointer | null } | null>(null);
   const onSwipe = opts.onSwipe;
 
-  const size = () => {
+  const size = useCallback(() => {
     const r = containerRef.current?.getBoundingClientRect();
     return { width: r?.width ?? 0, height: r?.height ?? 0, left: r?.left ?? 0, top: r?.top ?? 0 };
-  };
+  }, [containerRef]);
 
   const clamp = useCallback((next: ZoomPanState): ZoomPanState => {
     const scale = Math.min(MAX, Math.max(MIN, next.scale));
@@ -38,7 +39,7 @@ export function useZoomPan(opts: { onSwipe?: (direction: 1 | -1) => void; enable
     const maxX = ((scale - 1) * width) / 2;
     const maxY = ((scale - 1) * height) / 2;
     return { scale, x: Math.max(-maxX, Math.min(maxX, next.x)), y: Math.max(-maxY, Math.min(maxY, next.y)) };
-  }, []);
+  }, [size]);
 
   const reset = useCallback(() => setState({ scale: 1, x: 0, y: 0 }), []);
 
@@ -55,7 +56,7 @@ export function useZoomPan(opts: { onSwipe?: (direction: 1 | -1) => void; enable
       const y = py - (py - s.y) * ratio;
       setState(clamp({ scale: target, x, y }));
     },
-    [clamp],
+    [clamp, size],
   );
 
   const onWheel = useCallback(
@@ -157,7 +158,6 @@ export function useZoomPan(opts: { onSwipe?: (direction: 1 | -1) => void; enable
   };
 
   return {
-    containerRef,
     scale: state.scale,
     zoomed: state.scale > 1.02,
     style,

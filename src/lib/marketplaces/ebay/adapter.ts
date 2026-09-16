@@ -2,7 +2,7 @@ import { db, Prisma, type ConditionGrade, type Item, type ListingDraft, type Mar
 import { encryptSecret } from "../../crypto";
 import { storage } from "../../storage";
 import { formatMoney } from "../../money";
-import { CONDITION_LABELS, MARKETPLACES, estimateFees } from "../registry";
+import { MARKETPLACES, estimateFees } from "../registry";
 import { findSpecific, mergeSpecifics, parseSpecifics, renderListing } from "../render";
 import { selectListingPhotos } from "../photos";
 import { loadSellerPrefs, locationOf } from "../prefs";

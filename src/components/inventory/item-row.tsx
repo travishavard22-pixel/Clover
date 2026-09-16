@@ -2,7 +2,6 @@
 import { forwardRef } from "react";
 import { Money } from "@/components/ui/money";
 import { Checkbox } from "@/components/ui/switch";
-import type { ItemListDTO } from "@/lib/inventory/types";
 import { isSoldStatus } from "@/lib/inventory/compute";
 import { cn } from "@/lib/utils/cn";
 import { CoverImage } from "./cover-image";

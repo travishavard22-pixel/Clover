@@ -212,6 +212,7 @@ function ItemSummary({ hub, liveCount, demo }: { hub: PublishHubData; liveCount:
   return (
     <div className="surface-card flex items-center gap-4 p-4">
       <div className="size-16 shrink-0 overflow-hidden rounded-xs bg-surface-sunken">
+        {/* eslint-disable-next-line @next/next/no-img-element -- signed same-origin URL */}
         {cover ? <img src={cover.thumbUrl} alt={item.title} width={cover.width} height={cover.height} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center text-xs text-muted">No photo</span>}
       </div>
       <div className="min-w-0 flex-1">

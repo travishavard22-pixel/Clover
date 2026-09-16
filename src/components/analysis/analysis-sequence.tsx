@@ -37,7 +37,7 @@ export function AnalysisSequence({ itemId, jobId, initialSteps, initialStatus, c
   const [dismissedSlow, setDismissedSlow] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const prevSteps = useRef(state.steps);
-  const mountedAt = useRef(Date.now());
+  const [mountedAt] = useState(() => Date.now());
 
   // Live-region announcements for step changes (one sentence per change, most recent wins).
   useEffect(() => {
@@ -70,10 +70,10 @@ export function AnalysisSequence({ itemId, jobId, initialSteps, initialStatus, c
   // "Taking longer than usual" after 90 s while still running.
   useEffect(() => {
     if (state.outcome !== "running") return;
-    const elapsed = Date.now() - mountedAt.current;
+    const elapsed = Date.now() - mountedAt;
     const t = setTimeout(() => setSlow(true), Math.max(0, SLOW_AFTER_MS - elapsed));
     return () => clearTimeout(t);
-  }, [state.outcome]);
+  }, [state.outcome, mountedAt]);
 
   const retry = async () => {
     setRetrying(true);

@@ -180,7 +180,6 @@ export function useJobEvents(jobId: string | null, opts: { initialSteps?: JobSte
       sourceRef.current = null;
     };
     // The initial steps/status only seed the very first render; the stream is the source of truth after that.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
   return useMemo(() => state, [state]);
