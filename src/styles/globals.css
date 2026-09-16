@@ -1,0 +1,141 @@
+@import "tailwindcss";
+@import "./tokens.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource/instrument-serif";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Map semantic tokens into Tailwind utilities (bg-surface-raised, text-secondary, border-default…) */
+@theme inline {
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-floating: var(--surface-floating);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-inverse: var(--surface-inverse);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-inverse: var(--text-inverse);
+  --color-on-accent: var(--text-on-accent);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-active: var(--accent-active);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-strong: var(--accent-soft-strong);
+  --color-accent-text: var(--accent-text);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-scrim: var(--scrim);
+  --color-studio: var(--studio-bg);
+
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  --shadow-float: var(--shadow-float);
+  --shadow-lift: var(--shadow-lift);
+
+  --ease-out: var(--ease-out);
+  --ease-in-out: var(--ease-in-out);
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 3rem;
+  --text-5xl: 4rem;
+}
+
+@layer base {
+  * { border-color: var(--border-default); }
+  html { -webkit-text-size-adjust: 100%; text-rendering: optimizeLegibility; scroll-behavior: smooth; }
+  body {
+    background: var(--surface-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100dvh;
+  }
+  @media (min-width: 1024px) { body { font-size: 0.9375rem; } }
+
+  h1, h2, h3, h4 { font-weight: 600; line-height: 1.15; letter-spacing: -0.015em; text-wrap: balance; }
+  h1 { font-size: var(--text-3xl); letter-spacing: -0.03em; }
+  h2 { font-size: var(--text-2xl); letter-spacing: -0.025em; }
+  h3 { font-size: var(--text-xl); letter-spacing: -0.02em; }
+  p { text-wrap: pretty; }
+
+  :focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-xs); }
+  ::selection { background: var(--accent-soft-strong); }
+
+  img, video { max-width: 100%; height: auto; display: block; }
+  button, [role="button"] { cursor: pointer; touch-action: manipulation; }
+  input, textarea, select, button { font: inherit; color: inherit; }
+  input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+  /* Reduced motion: gentler, never nothing. Transitions collapse to quick fades. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 80ms !important; scroll-behavior: auto !important; }
+  }
+  body[data-reduced-motion="true"] *, body[data-reduced-motion="true"] *::before, body[data-reduced-motion="true"] *::after {
+    animation-duration: 0.01ms !important; transition-duration: 80ms !important;
+  }
+}
+
+@utility tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum", "cv11"; }
+@utility display { letter-spacing: -0.03em; font-weight: 600; line-height: 1.05; }
+@utility serif-display { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; line-height: 1.05; }
+@utility gutter { padding-left: var(--gutter); padding-right: var(--gutter); }
+@utility content-max { max-width: var(--content-max); margin-left: auto; margin-right: auto; }
+@utility surface-card { background: var(--surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }
+@utility surface-sheet { background: var(--surface-overlay); border: 1px solid var(--border-default); border-radius: var(--radius-md); box-shadow: var(--shadow-float); }
+@utility scrim-text { text-shadow: 0 1px 2px oklch(0 0 0 / 0.4); }
+@utility hide-scrollbar { scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
+@utility safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+@utility touch-target { min-height: 44px; min-width: 44px; }
+
+/* Skeleton: single slow pass, layout-matched blocks */
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@utility skeleton {
+  background: linear-gradient(90deg, var(--surface-sunken) 0%, var(--surface-raised) 50%, var(--surface-sunken) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s var(--ease-in-out) infinite;
+  border-radius: var(--radius-xs);
+  color: transparent;
+}
+
+/* Price count-up uses tabular figures to avoid width jitter */
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@utility animate-fade-up { animation: fade-up var(--dur-slow) var(--ease-out) both; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@utility animate-fade-in { animation: fade-in var(--dur-base) var(--ease-out) both; }
+
+.sr-only-focusable:not(:focus):not(:focus-within) { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }

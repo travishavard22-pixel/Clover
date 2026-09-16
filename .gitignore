@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+dist
+coverage
+/storage/
+*.log
+.env
+.env.local
+.env.*.local
+.DS_Store
+playwright-report
+test-results
+/generated
+.next-*
+tsconfig.tsbuildinfo
+.scratch
