@@ -6,7 +6,9 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+# No BuildKit cache mount: Railway validates mount ids (they must be `s/<service-id>-<path>`) and
+# rejects the Dockerfile otherwise; a plain install is portable to every builder.
+RUN pnpm install --frozen-lockfile
 
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
