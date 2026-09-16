@@ -1,6 +1,7 @@
 import sharp, { type OverlayOptions } from "sharp";
 import type { RenderedBackground } from "./background/types";
 import { centredAspectCrop, focusCrop, focusWithinBox, fitItem, frameForAspect, maskBoundingBox, type Box, type Placement, type Size } from "./geometry";
+import { estimateWhiteBalance } from "./white-balance";
 import { shadowParams, type ShadowParams } from "./lighting";
 import { colourBalanceRequested, type StudioOptions } from "./options";
 import { STUDIO_ACCENT_HEX, STUDIO_INK_HEX } from "./palette";
@@ -177,8 +178,8 @@ export async function edgeColour(image: Buffer): Promise<{ r: number; g: number;
 export type EnhanceResult = { raw: RawImage; applied: string[]; colourBalanced: boolean; mirrored: boolean };
 
 /**
- * Enhancement-only path, used when no cut-out is available. Levels, gentle grey-world white
- * balance, aspect framing (the photo is extended with its own edge colour rather than cropped, so
+ * Enhancement-only path, used when no cut-out is available. Levels, a gentle white balance taken
+ * from bright neutral pixels, aspect framing (the photo is extended with its own edge colour rather than cropped, so
  * nothing is lost), optional padding, optional user colour balance. No pixels are synthesised.
  */
 export async function enhanceOnly(source: Buffer, options: StudioOptions, opts: { maxEdge?: number } = {}): Promise<EnhanceResult> {
@@ -194,13 +195,15 @@ export async function enhanceOnly(source: Buffer, options: StudioOptions, opts: 
   applied.push("levels");
   const levelled = await img.raw().toBuffer({ resolveWithObject: true });
 
-  // Grey-world white balance with gains clamped to ±8% so colours stay true.
-  const stats = await sharp(levelled.data, { raw: { width: levelled.info.width, height: levelled.info.height, channels: 3 } }).stats();
-  const means = stats.channels.slice(0, 3).map((c) => c.mean);
-  const grey = (means[0]! + means[1]! + means[2]!) / 3;
-  const gains = means.map((m) => Math.min(1.08, Math.max(0.92, grey / Math.max(1, m))));
-  let balanced = sharp(levelled.data, { raw: { width: levelled.info.width, height: levelled.info.height, channels: 3 } }).linear(gains, [0, 0, 0]);
-  applied.push("white balance");
+  // White balance from bright near-neutral pixels only (paper, walls, labels), clamped to ±6%.
+  // A frame without such pixels is left alone: correcting from a warm table or a coloured item
+  // would tint the whole photo towards the complement.
+  const wb = estimateWhiteBalance(levelled.data, levelled.info.width, levelled.info.height, 3);
+  let balanced = sharp(levelled.data, { raw: { width: levelled.info.width, height: levelled.info.height, channels: 3 } });
+  if (wb.applied) {
+    balanced = balanced.linear(wb.gains, [0, 0, 0]);
+    applied.push("white balance");
+  }
 
   // Framing: extend to the requested aspect with the photo's own edge colour, plus padding.
   const w = levelled.info.width, h = levelled.info.height;
