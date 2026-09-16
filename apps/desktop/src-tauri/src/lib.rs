@@ -5,7 +5,7 @@
 //! (see the release workflow). Links to other sites open in the system browser, except the
 //! marketplace sign-in pages, which must stay in-window so the OAuth return lands in the app.
 
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_opener::OpenerExt;
 use url::Url;
 
