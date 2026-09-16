@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, Search, Sun, Moon, Monitor, LogOut, User, HelpCircle } from "lucide-react";
+import { Search, Sun, Moon, Monitor, LogOut, User, HelpCircle } from "lucide-react";
+import { NotificationsBell } from "@/components/notifications/bell";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { DemoBadge } from "@/components/ui/badge";
@@ -42,9 +43,7 @@ export function TopBar({ user, capabilities }: { user: ShellUser; capabilities: 
         <Search className="size-5" />
       </Button>
       {(capabilities.demoMode || !capabilities.ai) && <DemoBadge className="hidden sm:inline-flex" />}
-      <Link href="/notifications" className="relative inline-flex size-10 items-center justify-center rounded-xs hover:bg-surface-sunken" aria-label="Notifications">
-        <Bell className="size-5" strokeWidth={1.75} />
-      </Link>
+      <NotificationsBell />
       <Menu>
         <MenuTrigger asChild>
           <button type="button" className="flex size-9 items-center justify-center rounded-full bg-surface-inverse text-xs font-semibold text-inverse" aria-label="Account menu">

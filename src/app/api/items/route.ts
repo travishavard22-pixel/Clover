@@ -15,3 +15,5 @@ export const POST = withUser(
   },
   { rateLimit: { key: "item-create", limit: 60, windowSeconds: 600 } },
 );
+
+export { GET } from "./list";
