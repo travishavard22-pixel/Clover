@@ -270,7 +270,7 @@ export function PhotoManager({
           if (f) void replaceWith(f);
         }}
       />
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)} accessibility={{ announcements, screenReaderInstructions: { draggable: "To reorder, press space or enter on a photo's reorder handle, move with the arrow keys, then press space or enter again to drop. Escape cancels. Every photo's menu also offers Move left and Move right." } }}>
+      <DndContext id="dnd-photo-manager" sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)} accessibility={{ announcements, screenReaderInstructions: { draggable: "To reorder, press space or enter on a photo's reorder handle, move with the arrow keys, then press space or enter again to drop. Escape cancels. Every photo's menu also offers Move left and Move right." } }}>
         <SortableContext items={ids} strategy={rectSortingStrategy}>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-label={`${visible.length} ${visible.length === 1 ? "photo" : "photos"}. The first photo is the cover.`}>
             {visible.map((photo, index) => (
