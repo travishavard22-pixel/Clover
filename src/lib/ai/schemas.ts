@@ -76,6 +76,17 @@ export const ListingCopySchema = z.object({
 });
 export type ListingCopy = z.infer<typeof ListingCopySchema>;
 
+/** The same shape with size limits, for copy posted by the browser. Kept apart because structured outputs reject length constraints. */
+export const ListingCopyInputSchema = z.object({
+  title: z.string().max(200),
+  description: z.string().max(20_000),
+  bullets: z.array(z.string().max(400)).max(40),
+  conditionText: z.string().max(4_000),
+  specifics: z.array(z.object({ name: z.string().max(120), value: z.string().max(400) })).max(80),
+  keywords: z.array(z.string().max(80)).max(80),
+  suggestedCategoryPath: z.array(z.string().max(120)).max(12),
+});
+
 export const SelfCheckSchema = z.object({
   claims: z.array(z.object({ claim: z.string(), supported: z.boolean(), source: z.string().nullable() })),
   unsupportedCount: z.number(),

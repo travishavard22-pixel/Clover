@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { env } from "./env";
 import { requireUserApi } from "./session";
 import { clientIp, rateLimit, rateLimitHeaders } from "./ratelimit";
+
+/** Baseline for every signed-in route, so nothing is unthrottled by omission. Route-specific limits stack on top. */
+const BASELINE_USER_LIMIT = { limit: env.NODE_ENV === "production" ? 1200 : 20_000, windowSeconds: 600 };
 
 export type ApiUser = { id: string; name: string; email: string };
 
@@ -31,6 +35,8 @@ export function withUser<P extends Record<string, string> = Record<string, strin
     try {
       const user = await requireUserApi(req);
       if (!user) return apiError(401, "Sign in required", "unauthorized");
+      const baseline = await rateLimit(`api:user:${user.id}`, BASELINE_USER_LIMIT.limit, BASELINE_USER_LIMIT.windowSeconds);
+      if (!baseline.ok) return NextResponse.json({ error: { code: "rate_limited", message: "Too many requests. Please slow down." } }, { status: 429, headers: rateLimitHeaders(baseline) });
       if (opts.rateLimit) {
         const r = await rateLimit(`${opts.rateLimit.key}:user:${user.id}`, opts.rateLimit.limit, opts.rateLimit.windowSeconds);
         if (!r.ok) return NextResponse.json({ error: { code: "rate_limited", message: "Too many requests. Please slow down." } }, { status: 429, headers: rateLimitHeaders(r) });

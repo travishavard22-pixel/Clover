@@ -31,7 +31,17 @@ export function rateLimitHeaders(r: RateLimitResult): Record<string, string> {
   };
 }
 
+/**
+ * Best-effort client address. The right-most X-Forwarded-For hop is the one the trusted reverse
+ * proxy appended; earlier hops are whatever the client sent and are ignored. Deployments must sit
+ * behind a proxy that appends the peer address (every mainstream platform does).
+ */
 export function clientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
-  return (fwd ? fwd.split(",")[0]?.trim() : null) ?? req.headers.get("x-real-ip") ?? "unknown";
+  if (fwd) {
+    const hops = fwd.split(",").map((h) => h.trim()).filter(Boolean);
+    const last = hops[hops.length - 1];
+    if (last) return last.slice(0, 64);
+  }
+  return req.headers.get("x-real-ip")?.slice(0, 64) ?? "unknown";
 }

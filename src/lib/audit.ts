@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { clientIp } from "./ratelimit";
 
 export type AuditInput = {
   userId?: string | null;
@@ -30,9 +31,6 @@ export async function audit(input: AuditInput): Promise<void> {
 }
 
 export function requestMeta(req: Request) {
-  const fwd = req.headers.get("x-forwarded-for");
-  return {
-    ip: (fwd ? fwd.split(",")[0]?.trim() : null) ?? req.headers.get("x-real-ip"),
-    userAgent: req.headers.get("user-agent"),
-  };
+  const ip = clientIp(req);
+  return { ip: ip === "unknown" ? null : ip, userAgent: req.headers.get("user-agent") };
 }

@@ -1,9 +1,8 @@
 import { db } from "../db";
 
 export type SessionDTO = {
+  /** Opaque row id. The session token itself never leaves the server. */
   id: string;
-  /** Needed to revoke the session through better-auth; only ever returned to the session's owner. */
-  token: string;
   current: boolean;
   ipAddress: string | null;
   device: string;
@@ -25,7 +24,6 @@ export async function listUserSessions(userId: string, currentToken: string | nu
   return rows
     .map((s) => ({
       id: s.id,
-      token: s.token,
       current: s.token === currentToken,
       ipAddress: s.ipAddress ?? null,
       device: describeUserAgent(s.userAgent),

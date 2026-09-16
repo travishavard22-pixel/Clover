@@ -3,6 +3,7 @@ import { apiError, withPublic } from "@/lib/api";
 import { audit } from "@/lib/audit";
 import { env } from "@/lib/env";
 import { ACCOUNT_DELETION_TOPIC, AccountDeletionSchema, challengeResponse, eraseEbayAccountData } from "@/lib/marketplaces/ebay/account-deletion";
+import { verifyEbayNotification } from "@/lib/marketplaces/ebay/notification-signature";
 
 export const dynamic = "force-dynamic";
 
@@ -31,15 +32,23 @@ export const GET = withPublic(
 );
 
 /**
- * POST — a MARKETPLACE_ACCOUNT_DELETION notification. Shape is validated (400 otherwise); once
- * valid we always answer 200 so eBay stops retrying, even when we hold nothing for that user.
+ * POST — a MARKETPLACE_ACCOUNT_DELETION notification. The X-EBAY-SIGNATURE header is verified
+ * against eBay's published key before the body is even parsed (412 otherwise — usernames are
+ * public, so an unsigned request must never erase anything). Shape is validated (400); once valid
+ * we always answer 200 so eBay stops retrying, even when we hold nothing for that user.
  */
 export const POST = withPublic(
   async (req, { ip }) => {
     if (!env.EBAY_ACCOUNT_DELETION_VERIFICATION_TOKEN) return apiError(503, "eBay account deletion notifications are not configured on this deployment.", "not_configured");
+    const raw = await req.text();
+    const verified = await verifyEbayNotification(req.headers.get("x-ebay-signature"), raw);
+    if (!verified.ok) {
+      await audit({ action: "webhook.ebay.account_deletion.rejected", entityType: "webhook", meta: { reason: verified.reason }, ip });
+      return apiError(412, "Notification signature could not be verified.", verified.reason);
+    }
     let body: unknown;
     try {
-      body = await req.json();
+      body = JSON.parse(raw);
     } catch {
       return apiError(400, "Body must be JSON", "bad_json");
     }

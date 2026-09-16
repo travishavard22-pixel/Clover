@@ -1,6 +1,6 @@
 import { json, parseBody, withUser } from "@/lib/api";
 import { audit, requestMeta } from "@/lib/audit";
-import { ListingCopySchema } from "@/lib/ai/schemas";
+import { ListingCopyInputSchema } from "@/lib/ai/schemas";
 import { getOwnedItem } from "@/lib/items/access";
 import { factsFromContext } from "@/lib/listings/facts";
 import { checkListingClaims } from "@/lib/listings/self-check";
@@ -24,7 +24,7 @@ export const GET = withUser<Params>(async (_req, { user, params }) => {
  */
 export const PUT = withUser<Params>(
   async (req, { user, params }) => {
-    const copy = await parseBody(req, ListingCopySchema);
+    const copy = await parseBody(req, ListingCopyInputSchema);
     const item = await getOwnedItem(user.id, params.id);
     const key = parseDraftKey(params.key);
     const existing = await findDraft(item.id, key);

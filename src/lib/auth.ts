@@ -21,7 +21,8 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 14, // 14 days
     updateAge: 60 * 60 * 24, // refresh daily
-    cookieCache: { enabled: true, maxAge: 60 * 5 },
+    // No cookie cache: revoking a device or changing the password must take effect on the very next request.
+    cookieCache: { enabled: false },
   },
   rateLimit: {
     enabled: true,

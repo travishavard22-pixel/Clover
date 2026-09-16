@@ -19,7 +19,7 @@ export function SessionsSection({ sessions: initial }: { sessions: SessionDTO[] 
   const revoke = async (s: SessionDTO) => {
     setBusy(s.id);
     try {
-      const r = await settingsApi.revokeSession(s.token);
+      const r = await settingsApi.revokeSession(s.id);
       if (r.current) {
         router.push("/sign-in");
         router.refresh();

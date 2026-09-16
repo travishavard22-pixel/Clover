@@ -3,6 +3,7 @@ import { db, Prisma, type Marketplace } from "../db";
 import { ApiError } from "../api";
 import { audit } from "../audit";
 import { executeProposal, type ApplyResult } from "../automations/apply";
+import { parseTrace } from "./threads";
 
 const MarketplaceSchema = z.enum(["EBAY", "FACEBOOK", "OFFERUP", "NEXTDOOR", "CRAIGSLIST", "MERCARI", "POSHMARK"]);
 
@@ -11,30 +12,48 @@ export const CopilotProposalSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("price_change"),
     id: z.string().min(1).max(64),
-    itemId: z.string().min(1),
-    itemTitle: z.string(),
+    itemId: z.string().min(1).max(64),
+    itemTitle: z.string().max(300),
     fromCents: z.number().int().min(0),
-    toCents: z.number().int().min(100),
+    toCents: z.number().int().min(100).max(100_000_000),
     reason: z.string().max(500),
-    warnings: z.array(z.string()).default([]),
+    warnings: z.array(z.string().max(300)).max(20).default([]),
   }),
   z.object({
     kind: z.literal("rewrite_listing"),
     id: z.string().min(1).max(64),
-    itemId: z.string().min(1),
-    itemTitle: z.string(),
+    itemId: z.string().min(1).max(64),
+    itemTitle: z.string().max(300),
     marketplace: MarketplaceSchema.nullable(),
-    draftId: z.string().nullable(),
+    draftId: z.string().max(64).nullable(),
     instruction: z.string().max(500),
-    from: z.object({ title: z.string(), description: z.string() }),
-    to: z.object({ title: z.string(), description: z.string(), bullets: z.array(z.string()).default([]), conditionText: z.string().default(""), keywords: z.array(z.string()).default([]) }),
-    selfCheck: z.object({ verdict: z.enum(["pass", "revise", "reject"]), unsupportedCount: z.number() }).nullable(),
-    generatedBy: z.string(),
+    from: z.object({ title: z.string().max(200), description: z.string().max(20_000) }),
+    to: z.object({ title: z.string().max(200), description: z.string().max(20_000), bullets: z.array(z.string().max(400)).max(40).default([]), conditionText: z.string().max(4_000).default(""), keywords: z.array(z.string().max(80)).max(80).default([]) }),
+    selfCheck: z.object({ verdict: z.enum(["pass", "revise", "reject"]), unsupportedCount: z.number().int().min(0) }).nullable(),
+    generatedBy: z.string().max(120),
   }),
 ]);
 export type CopilotProposal = z.infer<typeof CopilotProposalSchema>;
 
-export const ApplyProposalSchema = z.object({ threadId: z.string().optional(), proposal: CopilotProposalSchema });
+export const ApplyProposalSchema = z.object({ threadId: z.string().min(1).max(64).optional(), proposal: CopilotProposalSchema });
+
+/**
+ * The proposal as the copilot actually produced it, read back from the conversation's stored tool
+ * trace. Applying from this record — rather than from whatever the browser posted — means a
+ * confirmation can only execute something the copilot raised.
+ */
+export async function findStoredProposal(threadId: string, proposalId: string): Promise<CopilotProposal | null> {
+  const messages = await db.copilotMessage.findMany({ where: { threadId, role: "assistant" }, select: { toolTrace: true }, orderBy: { createdAt: "desc" }, take: 200 });
+  for (const m of messages) {
+    const trace = parseTrace(m.toolTrace);
+    const found = trace?.proposals.find((p) => p.id === proposalId);
+    if (found) {
+      const parsed = CopilotProposalSchema.safeParse(found);
+      if (parsed.success) return parsed.data;
+    }
+  }
+  return null;
+}
 
 export type CopilotApplyResult = { summary: string; manual: Marketplace[]; jobIds: string[] };
 

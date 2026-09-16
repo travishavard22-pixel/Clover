@@ -13,7 +13,7 @@ import {
   type ListingCopy,
   type SelfCheck,
 } from "./schemas";
-import { COPILOT_SYSTEM, IDENTIFY_SYSTEM, OFFER_ADVICE_SYSTEM, PROMPT_VERSION, SELF_CHECK_SYSTEM, STUDIO_QA_SYSTEM, WRITE_LISTING_SYSTEM } from "./prompts";
+import { COPILOT_SYSTEM, IDENTIFY_SYSTEM, OFFER_ADVICE_SYSTEM, PROMPT_VERSION, SELF_CHECK_SYSTEM, STUDIO_QA_SYSTEM, WRITE_LISTING_SYSTEM, untrusted } from "./prompts";
 import type { AiProvider, CopilotEvent, CopilotTool, CopilotTurn, IdentifyInput, IdentifyOutput, ImageInput, OfferAdviceInput, StudioQaInput, WriteListingInput, WriteListingOutput } from "./provider";
 
 export class AiRefusalError extends Error {
@@ -119,8 +119,8 @@ export class AnthropicProvider implements AiProvider {
       `Marketplace: ${input.marketplace}`,
       `Limits: title <= ${input.limits.titleMax} characters, description <= ${input.limits.descriptionMax} characters.`,
       `Tone: ${input.tone ?? "neutral"}. Length: ${input.length ?? "standard"}.`,
-      input.compsVocabulary?.length ? `Search vocabulary from comparable listings (use only when consistent with verified facts): ${input.compsVocabulary.join(", ")}` : "",
-      input.existing ? `Existing copy to revise:\n${JSON.stringify(input.existing)}` : "",
+      input.compsVocabulary?.length ? `Search vocabulary from comparable listings (use only when consistent with verified facts):\n${untrusted("comparable-listings", input.compsVocabulary.join(", "))}` : "",
+      input.existing ? `Existing copy to revise:\n${untrusted("existing-copy", JSON.stringify(input.existing))}` : "",
       input.instruction ? `Instruction: ${input.instruction}` : "",
       `Verified facts (closed world):\n${JSON.stringify(facts, null, 2)}`,
     ]
@@ -168,10 +168,12 @@ export class AnthropicProvider implements AiProvider {
   }
 
   async offerAdvice(input: OfferAdviceInput) {
+    const { buyerMessage, ...numbers } = input;
+    const text = [`Offer facts:\n${JSON.stringify(numbers)}`, buyerMessage ? `Buyer's message:\n${untrusted("buyer-message", buyerMessage)}` : ""].filter(Boolean).join("\n\n");
     const { data } = await this.parse({
       model: env.CLOVER_MODEL_WRITE,
       system: OFFER_ADVICE_SYSTEM,
-      content: [{ type: "text", text: JSON.stringify(input) }],
+      content: [{ type: "text", text }],
       schema: OfferAdviceSchema,
       effort: "low",
       maxTokens: 2000,

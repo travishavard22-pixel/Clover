@@ -1,14 +1,14 @@
 import { z } from "zod";
 import { json, parseBody, withUser } from "@/lib/api";
 import { audit, requestMeta } from "@/lib/audit";
-import { ListingCopySchema, SelfCheckSchema } from "@/lib/ai/schemas";
+import { ListingCopyInputSchema, SelfCheckSchema } from "@/lib/ai/schemas";
 import { getOwnedItem } from "@/lib/items/access";
 import { findDraft, parseDraftKey, saveDraft, toDraftDTO } from "@/lib/listings/store";
 import { listingTool } from "@/lib/listings/tools";
 
 const Schema = z.object({
   tool: z.string().min(1).max(40),
-  proposal: ListingCopySchema,
+  proposal: ListingCopyInputSchema,
   selfCheck: SelfCheckSchema.nullable().optional(),
   model: z.string().max(120).optional(),
   provider: z.string().max(40).optional(),

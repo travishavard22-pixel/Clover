@@ -34,7 +34,8 @@ export type AccountDeletionResult = { matched: number; connectionsDeleted: numbe
  */
 export async function eraseEbayAccountData(data: AccountDeletionPayload["notification"]["data"]): Promise<AccountDeletionResult> {
   const connections = await db.marketplaceConnection.findMany({
-    where: { marketplace: "EBAY", OR: [{ externalAccountId: data.userId }, { externalAccountName: data.username }] },
+    // Match on eBay's immutable user id only: usernames are public and can be re-used.
+    where: { marketplace: "EBAY", externalAccountId: data.userId },
     select: { id: true, userId: true },
   });
   if (connections.length === 0) return { matched: 0, connectionsDeleted: 0, offersDeleted: 0, publicationsScrubbed: 0 };

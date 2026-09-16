@@ -1,5 +1,5 @@
 import type { Evaluator, PhotoQualityConfig, Proposal, SnapshotItem, SnapshotPhoto } from "../types";
-import { itemHref, plural, shortTitle } from "./shared";
+import { itemHref, plural } from "./shared";
 
 export type PhotoIssue = { code: "too_few" | "low_resolution" | "no_studio" | "cover_original"; message: string };
 
@@ -21,6 +21,14 @@ export function photoIssues(item: SnapshotItem, config: PhotoQualityConfig): Pho
   return issues;
 }
 
+/** Short, action-shaped headlines. The item is named separately in the row, so the title need not repeat it. */
+const HEADLINES: Record<PhotoIssue["code"], string> = {
+  too_few: "Add more photos",
+  low_resolution: "Some photos are too small",
+  no_studio: "No studio photo yet",
+  cover_original: "Use the cleaner photo as the cover",
+};
+
 export const evaluatePhotoQuality: Evaluator<"PHOTO_QUALITY"> = (ctx, config: PhotoQualityConfig): Proposal[] => {
   const out: Proposal[] = [];
   for (const item of ctx.items) {
@@ -30,7 +38,7 @@ export const evaluatePhotoQuality: Evaluator<"PHOTO_QUALITY"> = (ctx, config: Ph
     out.push({
       type: "PHOTO_QUALITY",
       itemId: item.id,
-      title: `${shortTitle(item.title)}: ${issues.length === 1 ? issues[0]!.message.toLowerCase() : `${issues.length} photo issues`}`,
+      title: issues.length === 1 ? HEADLINES[issues[0]!.code] : `${issues.length} photo issues`,
       body: issues.map((i) => i.message).join(". ") + ".",
       proposal: { key: `photo:${item.id}:${issues.map((i) => i.code).sort().join(",")}`, action: "review", itemId: item.id, href: itemHref(item.id, "photos"), checklist: issues.map((i) => i.message) },
       autoExecutable: false,

@@ -194,6 +194,19 @@ interface and return `REQUIRES_USER_ACTION` with a checklist instead of calling 
   disconnect per marketplace, eBay account-deletion notification endpoint.
 - Headers: CSP, HSTS, frame-ancestors none, referrer-policy, permissions-policy (camera only
   on our origin).
+- Sessions: the settings page lists devices by opaque id and revokes server-side; session tokens
+  never reach the browser as data. No session cookie cache, so revocation, password changes and
+  account deletion take effect on the next request.
+- Webhooks: eBay account-deletion notifications are verified against eBay's published signing key
+  (`X-EBAY-SIGNATURE`, ECDSA over the body) before any data is touched, and matched on the
+  immutable eBay user id only.
+- Prompt boundary: third-party text that reaches a model — buyer messages, comparable-listing
+  vocabulary, copy being revised, tool results — is wrapped in `<untrusted source="…">` tags and
+  every system prompt states that such text is data, never instructions. Copilot tools are
+  read-only or produce proposals the seller confirms; a confirmation is applied from the
+  proposal stored with the conversation, not from the request body.
+- Baseline per-user rate limit on every signed-in route, with tighter limits on AI, publishing,
+  export and account endpoints; signed file URLs use a purpose-derived key (HKDF) and expire.
 
 ## 9. Runtime modes
 
