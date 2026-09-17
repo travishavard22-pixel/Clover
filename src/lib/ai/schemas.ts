@@ -66,53 +66,107 @@ export const ItemProfileSchema = z.object({
 export type ItemProfile = z.infer<typeof ItemProfileSchema>;
 
 /**
- * What the model is actually asked for: the profile minus every `tier`.
+ * What the model is actually asked for, and it is deliberately not the shape we store.
  *
- * A tier is a pure function of its own confidence (`tierFromConfidence`), and the app already
- * recomputed all twelve of them on arrival — the model's answer was overwritten before anything
- * read it. Asking for a derived value cost output tokens on every call and invited the model to
- * hand back a tier that disagreed with its own confidence. Deriving it removes both.
+ * The API refused to compile this schema's grammar outright ("The compiled grammar is too large"),
+ * measured on the deployment: identify failed at 5319 bytes while the app's other four schemas
+ * passed, the largest at 671. Two things were making it expensive, and only the second mattered.
  *
- * This does not measurably shrink the compiled grammar (it drops ten string properties; the object
- * and branch counts are unchanged), so it is not on its own a fix for the API's "compiled grammar
- * is too large" rejection. It is worth doing because the request was asking for something it threw
- * away.
+ * The cheap one: every `tier` is a pure function of its own confidence, and the app recomputed all
+ * twelve on arrival, overwriting whatever came back before anything read it. Dropping them stops
+ * spending output tokens on a discarded value, but it barely moves the grammar.
+ *
+ * The expensive one: nine optional evidenced fields plus a free-form attribute list meant ten
+ * inlined copies of the same small object, nine of them wrapped in "object or null". A grammar
+ * compiler expands those per JSON path, so the cost was ten-fold. Collapsing them into one array
+ * of facts takes the grammar from 15 object types and 29 branches to 6 and none — roughly half the
+ * grammar-relevant size — while keeping identification a single call. Splitting it in two would
+ * have worked too, but the photos would travel twice and images dominate this request's input
+ * tokens, so it would have doubled the expensive part to dodge a schema limit.
  *
  * `ItemProfileSchema` stays the stored shape, so the database, the UI and the seller's own edits
- * are untouched — `hydrateProfile` is the one seam between the two.
+ * are untouched. `hydrateProfile` is the single seam: it routes facts back to their named fields,
+ * keeps unrecognised keys as attributes, and derives the tiers.
  */
 export const EvidencedFieldWireSchema = EvidencedFieldSchema.omit({ tier: true });
-export const ItemProfileWireSchema = ItemProfileSchema.omit({ identityTier: true }).extend({
+
+/** The named fields a fact can fill. Anything else the model reports becomes an attribute. */
+export const FACT_KEYS = ["brand", "model", "modelNumber", "color", "material", "size", "dimensions", "approximateAge"] as const;
+export type FactKey = (typeof FACT_KEYS)[number];
+
+export const ItemFactSchema = z.object({
+  key: z
+    .string()
+    .describe(
+      'Either one of "brand", "model", "modelNumber" (SKU/part number), "color", "material", "size" (clothing/shoe size or capacity), "dimensions" (only if measurable against a visible reference), "approximateAge" (era or year range) — or a free-form specific such as "Mount" or "Lens thread". Omit a fact entirely rather than guessing it.',
+    ),
+  value: z.string(),
+  confidence: z.number().describe("0-1 self-assessed probability that the value is correct"),
+  evidenceImage: z.number().nullable().describe("1-based index of the photo this was read from, or null if inferred"),
+  note: z.string().nullable().describe("Short justification, e.g. 'Label on underside reads M6'"),
+});
+export type ItemFact = z.infer<typeof ItemFactSchema>;
+
+export const ItemProfileWireSchema = ItemProfileSchema.omit({
+  identityTier: true,
+  brand: true,
+  model: true,
+  modelNumber: true,
+  color: true,
+  material: true,
+  size: true,
+  dimensions: true,
+  approximateAge: true,
+  attributes: true,
+}).extend({
   itemName: EvidencedFieldWireSchema.describe("Concise product name, e.g. 'Leica M6 35mm rangefinder camera'"),
-  brand: EvidencedFieldWireSchema.nullable(),
-  model: EvidencedFieldWireSchema.nullable(),
-  modelNumber: EvidencedFieldWireSchema.nullable().describe("SKU / model number / part number if legible"),
-  color: EvidencedFieldWireSchema.nullable(),
-  material: EvidencedFieldWireSchema.nullable(),
-  size: EvidencedFieldWireSchema.nullable().describe("Clothing/shoe size or capacity when applicable"),
-  dimensions: EvidencedFieldWireSchema.nullable().describe("Only if measurable from a visible reference; otherwise null"),
-  approximateAge: EvidencedFieldWireSchema.nullable().describe("Era or year range, e.g. '1984-1998' or 'circa 2019'"),
-  attributes: z.array(z.object({ name: z.string(), field: EvidencedFieldWireSchema })).describe("Other marketplace-relevant specifics actually visible or legible"),
+  facts: z.array(ItemFactSchema).describe("Everything else read from the photos, one entry per fact. Report a fact once; omit what is not legible."),
   condition: ItemProfileSchema.shape.condition.omit({ tier: true }),
 });
 export type ItemProfileWire = z.infer<typeof ItemProfileWireSchema>;
 
-/** Adds the derived tiers the wire schema leaves out. The inverse of what `omit` took away. */
+/** `"Model Number"`, `"model_number"` and `"modelNumber"` are the same field to a model, so compare loosely. */
+function normaliseFactKey(key: string): FactKey | null {
+  const flat = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return FACT_KEYS.find((k) => k.toLowerCase() === flat) ?? null;
+}
+
+/**
+ * Turns the wire shape back into the stored profile: facts to their named fields, the rest to
+ * attributes, tiers derived from confidence.
+ *
+ * A model asked for a list can report the same field twice. Highest confidence wins, so the result
+ * is the same whatever order they arrived in — a silent "last one wins" would make the stored
+ * profile depend on generation order.
+ */
 export function hydrateProfile(w: ItemProfileWire): ItemProfile {
-  const tier = <T extends { confidence: number } | null>(f: T): T extends null ? null : T & { tier: ConfidenceTierValue } =>
-    (f ? { ...f, tier: tierFromConfidence(f.confidence) } : f) as never;
+  const withTier = (f: Omit<EvidencedField, "tier">): EvidencedField => ({ ...f, tier: tierFromConfidence(f.confidence) });
+  const named: Partial<Record<FactKey, EvidencedField>> = {};
+  const attributes: ItemProfile["attributes"] = [];
+
+  for (const fact of w.facts) {
+    const field = withTier({ value: fact.value, confidence: fact.confidence, evidenceImage: fact.evidenceImage, note: fact.note });
+    const key = normaliseFactKey(fact.key);
+    if (!key) {
+      attributes.push({ name: fact.key, field });
+      continue;
+    }
+    const existing = named[key];
+    if (!existing || field.confidence > existing.confidence) named[key] = field;
+  }
+
   return {
     ...w,
-    itemName: tier(w.itemName),
-    brand: tier(w.brand),
-    model: tier(w.model),
-    modelNumber: tier(w.modelNumber),
-    color: tier(w.color),
-    material: tier(w.material),
-    size: tier(w.size),
-    dimensions: tier(w.dimensions),
-    approximateAge: tier(w.approximateAge),
-    attributes: w.attributes.map((a) => ({ ...a, field: tier(a.field) })),
+    itemName: withTier(w.itemName),
+    brand: named.brand ?? null,
+    model: named.model ?? null,
+    modelNumber: named.modelNumber ?? null,
+    color: named.color ?? null,
+    material: named.material ?? null,
+    size: named.size ?? null,
+    dimensions: named.dimensions ?? null,
+    approximateAge: named.approximateAge ?? null,
+    attributes,
     condition: { ...w.condition, tier: tierFromConfidence(w.condition.confidence) },
     identityTier: tierFromConfidence(w.identityConfidence),
   };
