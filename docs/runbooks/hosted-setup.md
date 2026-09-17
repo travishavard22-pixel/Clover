@@ -76,9 +76,26 @@ Trigger a redeploy after saving variables. The `web` service is healthy when
 
 ## 6. First sign-in
 
-Open the address, create your account at `/sign-up`, and run through onboarding. To load the demo
-seller instead, run the seed once from the Railway shell of the `web` service:
-`pnpm exec tsx prisma/seed.ts` (sign in as `demo@clover.local`, password `clover-demo-2026`).
+Open the address, create your account at `/sign-up`, and run through onboarding.
+
+The demo seller loads itself. While `CLOVER_DEMO_MODE` is set, every container start runs the seed,
+so the first boot after a deploy populates 14 items with the full generated photo set. Sign in with
+`demo@clover.local` / `clover-demo-2026` to browse it.
+
+Details worth knowing:
+
+- **It only runs in demo mode.** With `CLOVER_DEMO_MODE` unset the seed exits without touching the
+  database, so the demo catalogue can never appear in a real seller's account.
+- **It runs once.** `seedDemoAccount()` returns early when the account already has items, so the
+  first boot costs about 30 seconds and later boots cost a single count query.
+- **A seed failure does not take the site down.** The start command logs and continues to
+  `next start`, so a transient database or storage error leaves you with an empty app rather than a
+  failed deploy. Check the deploy logs for `demo seed failed` if the catalogue is missing.
+- **To reload it after changing the catalogue or the photos**, set `CLOVER_SEED_RESET=1` and
+  redeploy. That deletes the demo account's items and rebuilds them. Unset it afterwards, or every
+  boot will rebuild the catalogue.
+- Storage matters here: with `STORAGE_DRIVER=local` the seeded photos live on one container's
+  ephemeral disk and vanish on redeploy. Set the `S3_*` variables (step 4) to keep them.
 
 ## 7. Live marketplaces (when you are ready)
 
