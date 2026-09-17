@@ -22,11 +22,35 @@ export const DEMO_PASSWORD = "clover-demo-2026";
  * code paths rather than hand-written rows. Idempotent: returns early if the account already has
  * items unless CLOVER_SEED_RESET=1.
  */
+// The catalogue the demo account is built from: slug, status, palette hue, cost and marketplaces.
+const DEMO_PLAN: Array<{ slug: string; status: "DRAFT" | "READY" | "LISTED" | "OFFER_RECEIVED" | "SOLD" | "ARCHIVED"; hue: number; cost: number; listedDaysAgo?: number; soldDaysAgo?: number; soldOn?: Marketplace; markets?: Marketplace[] }> = [
+  { slug: "canon-ae1-program", status: "LISTED", hue: 30, cost: 9000, listedDaysAgo: 21, markets: ["EBAY", "FACEBOOK", "OFFERUP"] },
+  { slug: "keychron-k2-v2", status: "OFFER_RECEIVED", hue: 210, cost: 4500, listedDaysAgo: 9, markets: ["EBAY", "FACEBOOK"] },
+  { slug: "coach-tabby-26", status: "LISTED", hue: 340, cost: 12000, listedDaysAgo: 3, markets: ["EBAY"] },
+  { slug: "trek-domane-al2", status: "LISTED", hue: 150, cost: 40000, listedDaysAgo: 34, markets: ["FACEBOOK", "OFFERUP", "NEXTDOOR"] },
+  { slug: "kitchenaid-artisan", status: "SOLD", hue: 0, cost: 8000, listedDaysAgo: 40, soldDaysAgo: 28, soldOn: "EBAY", markets: ["EBAY", "FACEBOOK"] },
+  { slug: "levis-type-iii-trucker", status: "READY", hue: 220, cost: 1500 },
+  { slug: "nintendo-switch-oled", status: "SOLD", hue: 200, cost: 15000, listedDaysAgo: 18, soldDaysAgo: 6, soldOn: "FACEBOOK", markets: ["EBAY", "FACEBOOK"] },
+  { slug: "mcm-teak-tripod-lamp", status: "LISTED", hue: 45, cost: 3000, listedDaysAgo: 52, markets: ["FACEBOOK", "NEXTDOOR"] },
+  { slug: "dewalt-dcd771c2", status: "READY", hue: 60, cost: 5000 },
+  { slug: "nike-pegasus-40", status: "SOLD", hue: 280, cost: 3500, listedDaysAgo: 60, soldDaysAgo: 49, soldOn: "OFFERUP", markets: ["OFFERUP"] },
+  { slug: "lego-10264-corner-garage", status: "DRAFT", hue: 15, cost: 0 },
+  { slug: "lodge-l10sk3", status: "ARCHIVED", hue: 20, cost: 1200 },
+  { slug: "canon-ae1-program", status: "DRAFT", hue: 100, cost: 0 },
+  { slug: "coach-tabby-26", status: "SOLD", hue: 320, cost: 14000, listedDaysAgo: 75, soldDaysAgo: 70, soldOn: "EBAY", markets: ["EBAY"] },
+  ];
+
 export async function seedDemoAccount(): Promise<{ email: string; items: number }> {
   const user = await ensureUser();
   const existing = await db.item.count({ where: { userId: user.id } });
-  if (existing > 0 && process.env.CLOVER_SEED_RESET !== "1") return { email: DEMO_EMAIL, items: existing };
+  // A seed that died partway (a storage write failing on the first photo, say) leaves items behind.
+  // Counting items alone would then treat that wreckage as "already seeded" and skip the rebuild
+  // forever, so the account is only complete when it has the whole plan and those items have photos.
+  const photos = existing > 0 ? await db.photo.count({ where: { item: { userId: user.id } } }) : 0;
+  const complete = existing >= DEMO_PLAN.length && photos > 0;
+  if (complete && process.env.CLOVER_SEED_RESET !== "1") return { email: DEMO_EMAIL, items: existing };
   if (existing > 0) {
+    if (!complete) console.warn(`[demo-seed] found an incomplete demo account (${existing} items, ${photos} photos) — rebuilding it.`);
     await db.item.deleteMany({ where: { userId: user.id } });
     await db.notification.deleteMany({ where: { userId: user.id } });
     await db.recommendation.deleteMany({ where: { userId: user.id } });
@@ -37,26 +61,8 @@ export async function seedDemoAccount(): Promise<{ email: string; items: number 
   const now = Date.now();
   const day = 24 * 3600 * 1000;
 
-  // slug, palette, plan
-  const plan: Array<{ slug: string; status: "DRAFT" | "READY" | "LISTED" | "OFFER_RECEIVED" | "SOLD" | "ARCHIVED"; hue: number; cost: number; listedDaysAgo?: number; soldDaysAgo?: number; soldOn?: Marketplace; markets?: Marketplace[] }> = [
-    { slug: "canon-ae1-program", status: "LISTED", hue: 30, cost: 9000, listedDaysAgo: 21, markets: ["EBAY", "FACEBOOK", "OFFERUP"] },
-    { slug: "keychron-k2-v2", status: "OFFER_RECEIVED", hue: 210, cost: 4500, listedDaysAgo: 9, markets: ["EBAY", "FACEBOOK"] },
-    { slug: "coach-tabby-26", status: "LISTED", hue: 340, cost: 12000, listedDaysAgo: 3, markets: ["EBAY"] },
-    { slug: "trek-domane-al2", status: "LISTED", hue: 150, cost: 40000, listedDaysAgo: 34, markets: ["FACEBOOK", "OFFERUP", "NEXTDOOR"] },
-    { slug: "kitchenaid-artisan", status: "SOLD", hue: 0, cost: 8000, listedDaysAgo: 40, soldDaysAgo: 28, soldOn: "EBAY", markets: ["EBAY", "FACEBOOK"] },
-    { slug: "levis-type-iii-trucker", status: "READY", hue: 220, cost: 1500 },
-    { slug: "nintendo-switch-oled", status: "SOLD", hue: 200, cost: 15000, listedDaysAgo: 18, soldDaysAgo: 6, soldOn: "FACEBOOK", markets: ["EBAY", "FACEBOOK"] },
-    { slug: "mcm-teak-tripod-lamp", status: "LISTED", hue: 45, cost: 3000, listedDaysAgo: 52, markets: ["FACEBOOK", "NEXTDOOR"] },
-    { slug: "dewalt-dcd771c2", status: "READY", hue: 60, cost: 5000 },
-    { slug: "nike-pegasus-40", status: "SOLD", hue: 280, cost: 3500, listedDaysAgo: 60, soldDaysAgo: 49, soldOn: "OFFERUP", markets: ["OFFERUP"] },
-    { slug: "lego-10264-corner-garage", status: "DRAFT", hue: 15, cost: 0 },
-    { slug: "lodge-l10sk3", status: "ARCHIVED", hue: 20, cost: 1200 },
-    { slug: "canon-ae1-program", status: "DRAFT", hue: 100, cost: 0 },
-    { slug: "coach-tabby-26", status: "SOLD", hue: 320, cost: 14000, listedDaysAgo: 75, soldDaysAgo: 70, soldOn: "EBAY", markets: ["EBAY"] },
-  ];
-
   let count = 0;
-  for (const p of plan) {
+  for (const p of DEMO_PLAN) {
     const entry = catalogBySlug(p.slug) ?? DEMO_CATALOG[0]!;
     const title = entry.profile.itemName.value;
     const item = await createItem(user.id, { title });
