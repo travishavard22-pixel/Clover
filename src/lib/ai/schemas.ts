@@ -65,6 +65,59 @@ export const ItemProfileSchema = z.object({
 });
 export type ItemProfile = z.infer<typeof ItemProfileSchema>;
 
+/**
+ * What the model is actually asked for: the profile minus every `tier`.
+ *
+ * A tier is a pure function of its own confidence (`tierFromConfidence`), and the app already
+ * recomputed all twelve of them on arrival — the model's answer was overwritten before anything
+ * read it. Asking for a derived value cost output tokens on every call and invited the model to
+ * hand back a tier that disagreed with its own confidence. Deriving it removes both.
+ *
+ * This does not measurably shrink the compiled grammar (it drops ten string properties; the object
+ * and branch counts are unchanged), so it is not on its own a fix for the API's "compiled grammar
+ * is too large" rejection. It is worth doing because the request was asking for something it threw
+ * away.
+ *
+ * `ItemProfileSchema` stays the stored shape, so the database, the UI and the seller's own edits
+ * are untouched — `hydrateProfile` is the one seam between the two.
+ */
+export const EvidencedFieldWireSchema = EvidencedFieldSchema.omit({ tier: true });
+export const ItemProfileWireSchema = ItemProfileSchema.omit({ identityTier: true }).extend({
+  itemName: EvidencedFieldWireSchema.describe("Concise product name, e.g. 'Leica M6 35mm rangefinder camera'"),
+  brand: EvidencedFieldWireSchema.nullable(),
+  model: EvidencedFieldWireSchema.nullable(),
+  modelNumber: EvidencedFieldWireSchema.nullable().describe("SKU / model number / part number if legible"),
+  color: EvidencedFieldWireSchema.nullable(),
+  material: EvidencedFieldWireSchema.nullable(),
+  size: EvidencedFieldWireSchema.nullable().describe("Clothing/shoe size or capacity when applicable"),
+  dimensions: EvidencedFieldWireSchema.nullable().describe("Only if measurable from a visible reference; otherwise null"),
+  approximateAge: EvidencedFieldWireSchema.nullable().describe("Era or year range, e.g. '1984-1998' or 'circa 2019'"),
+  attributes: z.array(z.object({ name: z.string(), field: EvidencedFieldWireSchema })).describe("Other marketplace-relevant specifics actually visible or legible"),
+  condition: ItemProfileSchema.shape.condition.omit({ tier: true }),
+});
+export type ItemProfileWire = z.infer<typeof ItemProfileWireSchema>;
+
+/** Adds the derived tiers the wire schema leaves out. The inverse of what `omit` took away. */
+export function hydrateProfile(w: ItemProfileWire): ItemProfile {
+  const tier = <T extends { confidence: number } | null>(f: T): T extends null ? null : T & { tier: ConfidenceTierValue } =>
+    (f ? { ...f, tier: tierFromConfidence(f.confidence) } : f) as never;
+  return {
+    ...w,
+    itemName: tier(w.itemName),
+    brand: tier(w.brand),
+    model: tier(w.model),
+    modelNumber: tier(w.modelNumber),
+    color: tier(w.color),
+    material: tier(w.material),
+    size: tier(w.size),
+    dimensions: tier(w.dimensions),
+    approximateAge: tier(w.approximateAge),
+    attributes: w.attributes.map((a) => ({ ...a, field: tier(a.field) })),
+    condition: { ...w.condition, tier: tierFromConfidence(w.condition.confidence) },
+    identityTier: tierFromConfidence(w.identityConfidence),
+  };
+}
+
 export const ListingCopySchema = z.object({
   title: z.string(),
   description: z.string().describe("Plain text with short paragraphs; no HTML"),
