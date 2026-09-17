@@ -54,6 +54,29 @@ const IDENTIFY_LADDER: Array<[string, z.ZodType]> = [
 
 type Probe = { ok: boolean; status?: number; error?: string; schemaBytes: number };
 
+/**
+ * Each configured model's effort support, reported because the provider now decides per model
+ * whether to send the parameter at all.
+ *
+ * This probe previously reported every schema healthy while a real listing still failed, because
+ * it left `effort` off a request the app always sends — so it was not testing the app's request.
+ * A probe that does not match the call it stands in for is worse than no probe: it reports an
+ * all-clear nobody can act on.
+ */
+async function effortReport(client: Anthropic, models: string[]): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = {};
+  for (const model of [...new Set(models)]) {
+    try {
+      const info = await client.models.retrieve(model);
+      const effort = info.capabilities?.effort;
+      out[model] = effort ? { supported: effort.supported, low: effort.low?.supported, medium: effort.medium?.supported, high: effort.high?.supported } : { supported: null, reason: "model reports no capability data" };
+    } catch (err) {
+      out[model] = { supported: null, error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
+    }
+  }
+  return out;
+}
+
 export const GET = withUser(
   async () => {
     if (!capabilities.ai) {
@@ -70,6 +93,13 @@ export const GET = withUser(
 
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 0, timeout: 30_000, defaultHeaders: workspaceHeaders(env.ANTHROPIC_WORKSPACE_ID) });
 
+    // Whether the probe's own model takes `effort`, so the probe sends what the app sends. Asked
+    // once here rather than per schema.
+    const probeEffort = await client.models
+      .retrieve(env.CLOVER_MODEL_CHECK)
+      .then((m) => (m.capabilities?.effort?.supported && m.capabilities.effort.medium?.supported ? ("medium" as const) : undefined))
+      .catch(() => undefined);
+
     const probe = async (schema: z.ZodType): Promise<Probe> => {
       const json = z.toJSONSchema(schema, { target: "draft-2020-12", reused: "ref" }) as Record<string, unknown>;
       delete json.$schema;
@@ -80,7 +110,7 @@ export const GET = withUser(
           model: env.CLOVER_MODEL_CHECK,
           max_tokens: 1,
           messages: [{ role: "user", content: "ping" }],
-          output_config: { format: jsonSchemaOutputFormat(json as never, { transform: false }) },
+          output_config: { format: jsonSchemaOutputFormat(json as never, { transform: false }), ...(probeEffort ? { effort: probeEffort } : {}) },
         });
         // Stopping at max_tokens is a pass: the schema compiled, generation just had nowhere to go.
         return { ok: true, schemaBytes };
@@ -111,6 +141,7 @@ export const GET = withUser(
           check: env.CLOVER_MODEL_CHECK,
           copilot: env.CLOVER_MODEL_COPILOT,
         },
+        effort: await effortReport(client, [env.CLOVER_MODEL_IDENTIFY, env.CLOVER_MODEL_WRITE, env.CLOVER_MODEL_CHECK, env.CLOVER_MODEL_COPILOT]),
         schemas: results,
         ...(ladder ? { identifyLadder: ladder } : {}),
       },
