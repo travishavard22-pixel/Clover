@@ -32,6 +32,26 @@ const SCHEMAS: Array<[string, z.ZodType]> = [
   ["offerAdvice", OfferAdviceSchema],
 ];
 
+/**
+ * Only used when `identify` is rejected: progressively smaller versions of it, so one request
+ * brackets where the limit actually falls instead of costing another deploy-and-ask round trip.
+ * Each rung is a reduction we would really consider, in the order we would consider it.
+ */
+const IDENTIFY_LADDER: Array<[string, z.ZodType]> = [
+  ["withoutAlternatives", ItemProfileWireSchema.omit({ alternativeIdentifications: true })],
+  ["withoutDefectObjects", ItemProfileWireSchema.omit({ alternativeIdentifications: true }).extend({ condition: ItemProfileWireSchema.shape.condition.extend({ defects: z.array(z.string()) }) })],
+  [
+    "minimal",
+    z.object({
+      itemName: ItemProfileWireSchema.shape.itemName,
+      facts: ItemProfileWireSchema.shape.facts,
+      categoryPath: z.array(z.string()),
+      condition: z.object({ grade: ItemProfileWireSchema.shape.condition.shape.grade, confidence: z.number(), summary: z.string(), functionalStatus: ItemProfileWireSchema.shape.condition.shape.functionalStatus }),
+      identityConfidence: z.number(),
+    }),
+  ],
+];
+
 type Probe = { ok: boolean; status?: number; error?: string; schemaBytes: number };
 
 export const GET = withUser(
@@ -49,9 +69,8 @@ export const GET = withUser(
     }
 
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 0, timeout: 30_000, defaultHeaders: workspaceHeaders(env.ANTHROPIC_WORKSPACE_ID) });
-    const results: Record<string, Probe> = {};
 
-    for (const [name, schema] of SCHEMAS) {
+    const probe = async (schema: z.ZodType): Promise<Probe> => {
       const json = z.toJSONSchema(schema, { target: "draft-2020-12", reused: "ref" }) as Record<string, unknown>;
       delete json.$schema;
       const schemaBytes = JSON.stringify(json).length;
@@ -63,13 +82,22 @@ export const GET = withUser(
           messages: [{ role: "user", content: "ping" }],
           output_config: { format: jsonSchemaOutputFormat(json as never, { transform: false }) },
         });
-        results[name] = { ok: true, schemaBytes };
+        // Stopping at max_tokens is a pass: the schema compiled, generation just had nowhere to go.
+        return { ok: true, schemaBytes };
       } catch (err) {
         const status = err instanceof Anthropic.APIError ? err.status : undefined;
-        // A hit max_tokens is a pass: the schema compiled, generation just had nowhere to go.
-        const message = err instanceof Error ? err.message : String(err);
-        results[name] = { ok: false, status, error: message.slice(0, 400), schemaBytes };
+        return { ok: false, status, error: (err instanceof Error ? err.message : String(err)).slice(0, 400), schemaBytes };
       }
+    };
+
+    const results: Record<string, Probe> = {};
+    for (const [name, schema] of SCHEMAS) results[name] = await probe(schema);
+
+    // Bracket the limit only when there is a rejection to explain.
+    let ladder: Record<string, Probe> | undefined;
+    if (!results["identify"]?.ok) {
+      ladder = {};
+      for (const [name, schema] of IDENTIFY_LADDER) ladder[name] = await probe(schema);
     }
 
     const ok = Object.values(results).every((r) => r.ok);
@@ -84,6 +112,7 @@ export const GET = withUser(
           copilot: env.CLOVER_MODEL_COPILOT,
         },
         schemas: results,
+        ...(ladder ? { identifyLadder: ladder } : {}),
       },
       { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } },
     );

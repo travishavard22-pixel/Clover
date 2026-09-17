@@ -112,7 +112,10 @@ Signed in, `GET /api/health/ai` sends the smallest possible real request for eac
 schema and reports which the API accepts. It is the counterpart to the storage probe: a key-scope
 problem and a schema the API will not compile look identical from the seller's side — the job just
 says identification failed — and this names which schema failed and why, from the deployment's own
-key. `max_tokens: 1` on the cheapest model keeps a probe's cost at effectively nothing.
+key. `max_tokens: 1` on the cheapest model keeps a probe's cost at effectively nothing. When the
+identify schema is the one rejected, it also walks a ladder of progressively smaller versions of it
+and reports which compile, so the limit is bracketed in that same request rather than over another
+deploy-and-ask cycle.
 
 Without `ANTHROPIC_API_KEY` and eBay credentials the app runs in labelled Demo mode, which is a
 fine way to try the hosted version before paying for anything.
