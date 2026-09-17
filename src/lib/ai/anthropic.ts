@@ -98,12 +98,55 @@ export function workspaceHeaders(workspaceId: string | undefined): Record<string
   return ws ? { "anthropic-workspace-id": ws } : undefined;
 }
 
+export type Effort = "low" | "medium" | "high";
+
+/**
+ * Whether to send `effort` at a given level, from a model's reported capability.
+ *
+ * Separated from the fetching so the decision is testable without a server: it is the part with
+ * rules in it, and the rule is "only when the model says both the parameter and that level are
+ * supported". Every uncertain case — no capability data, an unknown level — returns undefined, so
+ * the parameter is left off and the model uses its default.
+ */
+export function effortFromCapability(caps: Anthropic.Models.EffortCapability | null | undefined, level: Effort): Effort | undefined {
+  if (!caps?.supported) return undefined;
+  return caps[level]?.supported ? level : undefined;
+}
+
 export class AnthropicProvider implements AiProvider {
   readonly name = "anthropic" as const;
   private client: Anthropic;
+  /** Per-model effort capability, fetched once per process. `null` means "could not tell". */
+  private effortCaps = new Map<string, Anthropic.Models.EffortCapability | null>();
 
   constructor(apiKey = env.ANTHROPIC_API_KEY, workspaceId = env.ANTHROPIC_WORKSPACE_ID) {
     this.client = new Anthropic({ apiKey, maxRetries: 2, timeout: 120_000, defaultHeaders: workspaceHeaders(workspaceId) });
+  }
+
+  /**
+   * The effort to send for a model, or undefined to leave the parameter off.
+   *
+   * `effort` is not universal: the self-check step runs on the cheapest configured model, and
+   * Haiku 4.5 rejects the parameter outright with "This model does not support the effort
+   * parameter" — a 400 that failed the whole listing step. All four models are set by environment
+   * variable, so any of them can be pointed at a model with a different feature set, and a
+   * hardcoded list of which models accept what would be stale the next time that changes.
+   *
+   * So ask. The Models API reports the capability per model and per level, the answer is cached for
+   * the life of the process, and anything unexpected — a lookup that fails, a model the API does
+   * not know — omits the parameter rather than risking the 400. Omitting it is safe: the model then
+   * uses its own default.
+   */
+  private async effortFor(model: string, level: Effort): Promise<Effort | undefined> {
+    if (!this.effortCaps.has(model)) {
+      try {
+        const info = await this.client.models.retrieve(model);
+        this.effortCaps.set(model, info.capabilities?.effort ?? null);
+      } catch {
+        this.effortCaps.set(model, null);
+      }
+    }
+    return effortFromCapability(this.effortCaps.get(model), level);
   }
 
   private async parse<S extends z.ZodType>(opts: {
@@ -111,16 +154,17 @@ export class AnthropicProvider implements AiProvider {
     system: string;
     content: Anthropic.ContentBlockParam[];
     schema: S;
-    effort: "low" | "medium" | "high";
+    effort: Effort;
     maxTokens?: number;
   }): Promise<{ data: z.infer<S>; usage: { inputTokens: number; outputTokens: number } }> {
     try {
+      const effort = await this.effortFor(opts.model, opts.effort);
       const res = await this.client.messages.parse({
         model: opts.model,
         max_tokens: opts.maxTokens ?? 8000,
         system: systemBlock(opts.system),
         messages: [{ role: "user", content: opts.content }],
-        output_config: { format: outputFormat(opts.schema), effort: opts.effort },
+        output_config: { format: outputFormat(opts.schema), ...(effort ? { effort } : {}) },
       });
       if (res.stop_reason === "refusal") {
         throw new AiRefusalError(res.stop_details?.category ?? null, "The AI declined to process this request.");
@@ -250,6 +294,9 @@ export class AnthropicProvider implements AiProvider {
     const messages: Anthropic.MessageParam[] = input.history.map((h) => ({ role: h.role, content: h.content }));
     const toolTrace: Array<{ name: string; input: Record<string, unknown>; summary: string }> = [];
     let finalText = "";
+    // Same capability gate as the structured calls: the copilot's model is configurable too, and a
+    // rejected parameter here would fail the seller's question rather than one pipeline step.
+    const effort = await this.effortFor(model, "medium");
 
     for (let iteration = 0; iteration < 8; iteration++) {
       let message: Anthropic.Message;
@@ -260,7 +307,7 @@ export class AnthropicProvider implements AiProvider {
           system: systemBlock(`${COPILOT_SYSTEM}\n\n${input.system}`),
           messages,
           tools,
-          output_config: { effort: "medium" },
+          ...(effort ? { output_config: { effort } } : {}),
         });
         let turnText = "";
         for await (const ev of stream) {

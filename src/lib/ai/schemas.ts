@@ -125,10 +125,40 @@ export const ItemProfileWireSchema = ItemProfileSchema.omit({
 });
 export type ItemProfileWire = z.infer<typeof ItemProfileWireSchema>;
 
+/**
+ * The words a model reaches for instead of our key names. A miss is not an error — the fact lands
+ * in `attributes` and stays visible to the seller — but it lands in the wrong place, so `brand`
+ * reads empty while "Manufacturer" shows up among the specifics. These are the natural synonyms
+ * for a resale listing, which is exactly the vocabulary the request puts the model in.
+ *
+ * Deliberately not here: `serialNumber`, which is a different thing from a model number and
+ * belongs in the attributes it would otherwise displace.
+ */
+const FACT_KEY_ALIASES: Record<string, FactKey> = {
+  brandname: "brand",
+  manufacturer: "brand",
+  make: "brand",
+  modelname: "model",
+  productmodel: "model",
+  sku: "modelNumber",
+  partnumber: "modelNumber",
+  mpn: "modelNumber",
+  colour: "color",
+  colours: "color",
+  colors: "color",
+  materials: "material",
+  measurements: "dimensions",
+  dimension: "dimensions",
+  age: "approximateAge",
+  era: "approximateAge",
+  year: "approximateAge",
+  yearrange: "approximateAge",
+};
+
 /** `"Model Number"`, `"model_number"` and `"modelNumber"` are the same field to a model, so compare loosely. */
 function normaliseFactKey(key: string): FactKey | null {
   const flat = key.toLowerCase().replace(/[^a-z0-9]/g, "");
-  return FACT_KEYS.find((k) => k.toLowerCase() === flat) ?? null;
+  return FACT_KEYS.find((k) => k.toLowerCase() === flat) ?? FACT_KEY_ALIASES[flat] ?? null;
 }
 
 /**

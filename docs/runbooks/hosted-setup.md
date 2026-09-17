@@ -109,13 +109,19 @@ Settings → Workspaces, in the workspace's own page) or create a replacement ke
 workspace, which carries its own scope and needs no header.
 
 Signed in, `GET /api/health/ai` sends the smallest possible real request for each structured-output
-schema and reports which the API accepts. It is the counterpart to the storage probe: a key-scope
+schema and reports which the API accepts, plus each configured model's `effort` support. It is the counterpart to the storage probe: a key-scope
 problem and a schema the API will not compile look identical from the seller's side — the job just
 says identification failed — and this names which schema failed and why, from the deployment's own
 key. `max_tokens: 1` on the cheapest model keeps a probe's cost at effectively nothing. When the
 identify schema is the one rejected, it also walks a ladder of progressively smaller versions of it
 and reports which compile, so the limit is bracketed in that same request rather than over another
 deploy-and-ask cycle.
+
+The four `CLOVER_MODEL_*` variables can each name a different model, and models do not all take
+the same parameters — Haiku 4.5 rejects `effort` outright, which failed the listing step while
+identification was fine. The provider now asks the Models API what each configured model supports
+and leaves the parameter off when it does not, so a cheap model for the self-check is a valid
+choice rather than a broken one. `/api/health/ai` reports what it found per model.
 
 Without `ANTHROPIC_API_KEY` and eBay credentials the app runs in labelled Demo mode, which is a
 fine way to try the hosted version before paying for anything.
