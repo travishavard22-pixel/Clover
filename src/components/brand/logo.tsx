@@ -1,4 +1,4 @@
-import { CLOVER_LEAF_ANGLES, CLOVER_LEAF_PATH, CLOVER_LUCKY_LEAF, cloverLeafTransform } from "./clover";
+import { CLOVER_LEAF_ANGLES, CLOVER_LEAF_PATH, CLOVER_LUCKY_LEAF, CLOVER_SCALE, cloverLeafTransform } from "./clover";
 import { cn } from "@/lib/utils/cn";
 
 /**
@@ -21,7 +21,7 @@ export function CloverMark({ className, size = 24 }: { className?: string; size?
           key={angle}
           d={CLOVER_LEAF_PATH}
           fillOpacity={distinguishLucky && i === CLOVER_LUCKY_LEAF ? 0.55 : undefined}
-          transform={cloverLeafTransform(angle, 1.38)}
+          transform={cloverLeafTransform(angle, CLOVER_SCALE.tile)}
         />
       ))}
     </svg>

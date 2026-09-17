@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLOVER_LEAF_ANGLES, CLOVER_LUCKY_LEAF, CLOVER_SCALE, cloverLeafTransform, cloverLeaves } from "@/components/brand/clover";
+import { CLOVER_LEAF_ANGLES, CLOVER_LEAF_OFFSET, CLOVER_LUCKY_LEAF, CLOVER_SCALE, cloverLeafTransform, cloverLeaves, cloverReach } from "@/components/brand/clover";
 
 describe("clover geometry", () => {
   it("places four leaves on the axes", () => {
@@ -34,10 +34,19 @@ describe("clover geometry", () => {
 
   it("keeps the maskable mark inside Android's safe circle", () => {
     // Android may crop a maskable icon to a circle of 80% diameter — a radius of 25.6 on a 64 tile.
-    // A leaf reaches ~19 units from the centre before scaling.
-    const reach = 19 * CLOVER_SCALE.maskable;
-    expect(reach).toBeLessThan(0.8 * 32);
-    // And the store tile should still fill its square generously, or the icon looks timid.
-    expect(19 * CLOVER_SCALE.tile).toBeGreaterThan(24);
+    // The offset counts towards the reach, so it is checked through cloverReach rather than scale.
+    expect(cloverReach(CLOVER_SCALE.maskable)).toBeLessThan(0.8 * 32);
+    // And the store tile should fill its square generously, without running off the edge.
+    expect(cloverReach(CLOVER_SCALE.tile)).toBeGreaterThan(24);
+    expect(cloverReach(CLOVER_SCALE.tile)).toBeLessThan(32);
+  });
+
+  it("pushes the leaves apart so four of them are countable", () => {
+    // With the tips meeting exactly at the centre the leaves merge into one silhouette and the mark
+    // reads as a flower. The offset is what opens the clefts; zero would undo the whole point.
+    expect(CLOVER_LEAF_OFFSET).toBeGreaterThan(0);
+    for (const angle of CLOVER_LEAF_ANGLES) {
+      expect(cloverLeafTransform(angle, CLOVER_SCALE.tile)).toContain(`translate(0 ${-CLOVER_LEAF_OFFSET})`);
+    }
   });
 });
