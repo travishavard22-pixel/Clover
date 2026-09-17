@@ -49,22 +49,42 @@ Reference points (for taste, not imitation): Linear (restraint, token system), F
 
 ## 3. Logo and wordmark
 
-**Symbol: the "Aperture Clover".** Four identical rounded leaves arranged around a centre, each
-leaf drawn as a camera-aperture blade (a rounded quadrilateral with one straight inner edge).
-Rotated 45°, the negative space in the centre forms a small square — the viewfinder. Read
-literally: *a camera that grows into four marketplaces.*
+**Symbol: the clover.** Four heart-shaped leaves meeting at the centre, on the axes rather than the
+diagonals, with the top leaf lighter than the other three — the lucky leaf.
 
-Construction rules (SVG in `apps/web/public/brand/clover-mark.svg`):
+This replaced an "Aperture Clover" whose leaves were camera-aperture blades rotated 45°, meant to
+read as a lens and a clover at once. It read as neither: at icon size the blades look like a
+pinwheel or two plasters. The name is Clover, so the mark is a clover. Lobed hearts are what make
+that legible, and the notches between them survive being scaled to 20px. The camera idea now lives
+in the product, not in a mark too small to carry it.
 
-- Built on a 24-unit grid. Leaves are 10×10 rounded rectangles (radius 4) offset 5 units from
-  centre, rotated 45°. Centre square is 3×3 negative space.
-- Single colour. Never gradient. Never with a drop shadow.
-- Minimum size 16 px (favicon). At ≤ 20 px the centre square is removed.
-- Clear space = height of one leaf on all sides.
+The lucky leaf is the whole idea. A plain four-leaf clover is botany; one leaf picked out is luck,
+which is what a reseller is looking for, and it is what makes the icon memorable in a grid of
+competitors. It is the top leaf — an off-axis position reads as accidental rather than chosen.
 
-**Wordmark:** "clover" set in lowercase Inter Display (weight 600, tracking −0.035em), leading
-cap height aligned to the symbol's centre square. Lowercase is deliberate: friendlier than a
-tech-uppercase mark and it keeps the counters open at small sizes.
+Construction rules (geometry in `src/components/brand/clover.ts`, the single source both the app's
+mark and `pnpm icons` draw from — two copies of a logo drift):
+
+- One leaf primitive: a heart with its tip at the bottom of a 24-unit box, placed four times with
+  the tips at the centre, rotated 0/90/180/270°. Leaves reach ~19 units, so at `scale` 1.38 the
+  mark spans about 52 of a 64-unit tile.
+- **In the app, single colour.** The mark takes `currentColor` and expresses the lucky leaf as 55%
+  fill-opacity, so one drawing works green on cream, cream on green and in dark mode. A second
+  hardcoded fill would only work on one background.
+- Below 20px the lucky leaf goes solid: a 55%-opacity lobe a few pixels across stops reading as a
+  lighter leaf and starts reading as a rendering artefact.
+- **On store and launcher icons only**, a two-tone fill on a green gradient (`--green-3` →
+  `--green-6`, cream leaves, `--green-2` lucky leaf). A flat fill sits flatter than everything
+  around it on a store page. This is the one place the mark is not single-colour, and it is never
+  the in-app mark.
+- Android maskable icons use `scale` 1.1, not 1.38: the OS may crop to a circle of 80% diameter.
+- The iOS touch icon ships square. iOS applies its own mask, and a pre-rounded icon gets
+  double-rounded.
+- Minimum size 16px (favicon). Clear space = the height of one leaf on all sides.
+
+**Wordmark:** "clover" set in lowercase Inter Display (weight 600, tracking −0.035em), cap height
+aligned to the symbol's centre. Lowercase is deliberate: friendlier than a tech-uppercase mark and
+it keeps the counters open at small sizes.
 
 Lock-ups: symbol-left (default), symbol-only (app icon, favicon, avatar), stacked (splash).
 

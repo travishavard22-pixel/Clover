@@ -7,7 +7,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <aside aria-label="About Clover" className="relative hidden overflow-hidden bg-surface-inverse text-inverse lg:block">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,oklch(0.32_0.08_152/0.6),transparent_55%)]" aria-hidden />
         <div className="relative flex h-full flex-col justify-between p-12">
-          <CloverWordmark size={26} className="text-inverse" />
+          <CloverWordmark size={26} tone="inherit" className="text-inverse" />
           <div>
             <p className="serif-display text-6xl leading-[1.02]">
               Photograph it.
