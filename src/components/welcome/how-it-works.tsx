@@ -12,7 +12,7 @@ export function HowItWorks() {
     <section className="border-t border-border-subtle bg-surface-raised">
       <div className="content-max gutter py-16 md:py-24">
         <Reveal>
-          <h2 className="display text-3xl md:text-4xl">Three steps. About a minute.</h2>
+          <h2 className="serif-display text-4xl md:text-5xl">Three steps. About a minute.</h2>
         </Reveal>
         <ol className="mt-10 grid gap-6 md:grid-cols-3">
           {steps.map((s, i) => (

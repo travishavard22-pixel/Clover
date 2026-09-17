@@ -19,25 +19,30 @@ export function RecentItems({ items }: { items: ItemListDTO[] }) {
           All inventory <ArrowRight className="size-3.5" aria-hidden />
         </Link>
       </div>
-      <ul className="hide-scrollbar -mx-(--gutter) flex snap-x gap-3 overflow-x-auto px-(--gutter) pb-1 md:mx-0 md:px-0">
-        {items.map((item) => {
-          const sold = isSoldStatus(item.status);
-          return (
-            <li key={item.id} className="w-36 shrink-0 snap-start sm:w-40">
-              <Link href={`/items/${item.id}`} className="group block rounded-sm outline-none">
-                <div className="aspect-square overflow-hidden rounded-sm border border-border-subtle bg-surface-sunken">
-                  <CoverImage cover={item.cover} alt={item.title} muted={sold} className="transition-transform duration-(--dur-slow) ease-(--ease-out) group-hover:scale-[1.02]" />
-                </div>
-                <p className="mt-2 truncate text-sm font-medium text-primary">{item.title}</p>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <Money cents={sold ? item.soldPrice : item.listPrice ?? item.estimatedValue} compact className="text-sm text-secondary" />
-                  <ItemStatusBadge status={item.status} className="h-5 text-[10px]" />
-                </div>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      {/* The row scrolls horizontally. On wide screens it is clipped by the column rather than
+          bleeding into the page gutter, so a soft edge tells you there is more to the right. */}
+      <div className="relative">
+        <ul className="hide-scrollbar -mx-(--gutter) flex snap-x gap-3 overflow-x-auto px-(--gutter) pb-1 md:mx-0 md:px-0">
+          {items.map((item) => {
+            const sold = isSoldStatus(item.status);
+            return (
+              <li key={item.id} className="w-36 shrink-0 snap-start sm:w-40">
+                <Link href={`/items/${item.id}`} className="group block rounded-sm outline-none">
+                  <div className="aspect-square overflow-hidden rounded-sm border border-border-subtle bg-surface-sunken">
+                    <CoverImage cover={item.cover} alt={item.title} muted={sold} className="transition-transform duration-(--dur-slow) ease-(--ease-out) group-hover:scale-[1.02]" />
+                  </div>
+                  <p className="mt-2 truncate text-sm font-medium text-primary">{item.title}</p>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <Money cents={sold ? item.soldPrice : item.listPrice ?? item.estimatedValue} compact className="text-sm text-secondary" />
+                    <ItemStatusBadge status={item.status} className="h-5 text-[10px]" />
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 hidden w-16 bg-gradient-to-l from-surface-base to-transparent md:block" />
+      </div>
     </section>
   );
 }

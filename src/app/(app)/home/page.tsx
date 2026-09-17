@@ -30,6 +30,7 @@ export default async function HomePage() {
   return (
     <Page>
       <PageHeader
+        serif
         eyebrow={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         title={greeting(user.name, new Date().getHours())}
         description={
