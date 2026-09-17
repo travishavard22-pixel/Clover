@@ -113,6 +113,9 @@
 @utility tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum", "cv11"; }
 @utility display { letter-spacing: -0.03em; font-weight: 600; line-height: 1.05; }
 @utility serif-display { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; line-height: 1.05; }
+/* A soft accent wash for the landing hero. Sits behind the artwork, not the copy, so it adds depth
+   without touching text contrast, and follows --accent so it re-tints in dark mode. */
+@utility hero-wash { background: radial-gradient(58% 58% at 74% 38%, color-mix(in oklch, var(--accent) 9%, transparent), transparent 70%); }
 @utility gutter { padding-left: var(--gutter); padding-right: var(--gutter); }
 @utility content-max { max-width: var(--content-max); margin-left: auto; margin-right: auto; }
 @utility surface-card { background: var(--surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }

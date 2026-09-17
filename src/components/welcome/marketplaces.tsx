@@ -7,7 +7,7 @@ export function Marketplaces() {
     <section className="border-t border-border-subtle bg-surface-raised">
       <div className="content-max gutter py-16 md:py-24">
         <Reveal>
-          <h2 className="display text-3xl md:text-4xl">Every marketplace, honestly.</h2>
+          <h2 className="serif-display text-4xl md:text-5xl">Every marketplace, honestly.</h2>
           <p className="mt-3 max-w-2xl text-secondary">Where a marketplace offers an official API, Clover publishes for you. Where it doesn&rsquo;t, Clover prepares everything and you post it in about a minute.</p>
         </Reveal>
         <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
