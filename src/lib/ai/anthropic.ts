@@ -1,14 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import type { z } from "zod";
+import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
+import { z } from "zod";
 import { env } from "../env";
 import {
-  ItemProfileSchema,
+  hydrateProfile,
+  ItemProfileWireSchema,
   ListingCopySchema,
   OfferAdviceSchema,
   SelfCheckSchema,
   StudioQaSchema,
-  tierFromConfidence,
   type ItemProfile,
   type ListingCopy,
   type SelfCheck,
@@ -37,6 +37,28 @@ function systemBlock(text: string): Anthropic.TextBlockParam[] {
   return [{ type: "text", text, cache_control: { type: "ephemeral" } }];
 }
 
+/**
+ * Builds the structured-output format from a Zod schema.
+ *
+ * Not `zodOutputFormat`: in SDK 0.126 its schema transform deletes `enum` and writes the values
+ * into `description` as prose — `{"type":"string","enum":["GOOD",…]}` becomes
+ * `{"type":"string","description":"{enum: [\"GOOD\",…]}"}`. The API documents `enum` as supported,
+ * so that is pure loss: the model is left free to invent a grade, and the Zod parse then rejects
+ * the entire response as unparseable rather than the one bad field. Zod's own converter emits the
+ * enums correctly, so the schema is built there and handed over with the transform switched off.
+ *
+ * `reused: "ref"` collects the repeated shapes into `$defs`, which the API supports and which keeps
+ * the payload small. Note it does not follow that the *grammar* shrinks: a compiler expands a `$ref`
+ * at each use, so restoring the enums adds branches it did not have before. Correctness, not size.
+ */
+function outputFormat<S extends z.ZodType>(schema: S) {
+  const json = z.toJSONSchema(schema, { target: "draft-2020-12", reused: "ref" }) as Record<string, unknown>;
+  // `$schema` is metadata, not a constraint; the SDK's own transform strips it, so drop it here too
+  // rather than leave the server to decide what an unexpected keyword means.
+  delete json.$schema;
+  return jsonSchemaOutputFormat(json as never, { transform: false });
+}
+
 function mapError(err: unknown): never {
   if (err instanceof Anthropic.RateLimitError) throw new AiUnavailableError("The AI service is rate-limited right now.", true);
   if (err instanceof Anthropic.InternalServerError) throw new AiUnavailableError("The AI service had an internal error.", true);
@@ -50,6 +72,12 @@ function mapError(err: unknown): never {
         "The Anthropic API key is not scoped to a workspace. Set ANTHROPIC_WORKSPACE_ID to the workspace's ID, or replace the key with one created inside a workspace.",
         false,
       );
+    }
+    // Also a misconfiguration rather than a bad request: the output schema compiled to a grammar
+    // the API will not accept. Nothing about the photos or the seller's input can cause it, so
+    // point at the schema instead of inviting a retry that will fail identically.
+    if (err.message.includes("compiled grammar is too large")) {
+      throw new AiUnavailableError("The AI output schema is too complex for the API to compile. This is a bug in Clover, not something wrong with your photos — the identify schema needs simplifying.", false);
     }
     throw new AiUnavailableError(`AI request rejected: ${err.message}`, false);
   }
@@ -92,13 +120,20 @@ export class AnthropicProvider implements AiProvider {
         max_tokens: opts.maxTokens ?? 8000,
         system: systemBlock(opts.system),
         messages: [{ role: "user", content: opts.content }],
-        output_config: { format: zodOutputFormat(opts.schema), effort: opts.effort },
+        output_config: { format: outputFormat(opts.schema), effort: opts.effort },
       });
       if (res.stop_reason === "refusal") {
         throw new AiRefusalError(res.stop_details?.category ?? null, "The AI declined to process this request.");
       }
       if (!res.parsed_output) throw new AiUnavailableError("The AI returned an unparseable response.", true);
-      return { data: res.parsed_output, usage: { inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens } };
+      // The format is a JSON schema now, so `parsed_output` is typed from it rather than from Zod.
+      // Re-validating against the Zod schema is what makes the return type honest, and it turns a
+      // deviation into a named field rather than a cast that lies.
+      const checked = opts.schema.safeParse(res.parsed_output);
+      if (!checked.success) {
+        throw new AiUnavailableError(`The AI's response did not match the expected shape (${checked.error.issues[0]?.path.join(".") || "unknown field"}).`, true);
+      }
+      return { data: checked.data as z.infer<S>, usage: { inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens } };
     } catch (err) {
       if (err instanceof AiRefusalError || err instanceof AiUnavailableError) throw err;
       return mapError(err);
@@ -121,9 +156,9 @@ export class AnthropicProvider implements AiProvider {
     if (input.candidates?.length) text += `\n\nCandidate identifications from external lookups (choose or reject with evidence):\n${input.candidates.map((c) => `- ${c}`).join("\n")}`;
     content.push({ type: "text", text });
 
-    const { data, usage } = await this.parse({ model, system: IDENTIFY_SYSTEM, content, schema: ItemProfileSchema, effort: input.escalate ? "high" : "medium" });
-    // Normalise tiers from confidence so the UI never sees an inconsistent pair.
-    const profile: ItemProfile = normaliseTiers(data);
+    const { data, usage } = await this.parse({ model, system: IDENTIFY_SYSTEM, content, schema: ItemProfileWireSchema, effort: input.escalate ? "high" : "medium" });
+    // Tiers are derived from confidence rather than asked for, so the pair can never disagree.
+    const profile: ItemProfile = hydrateProfile(data);
     return { profile, model, promptVersion: PROMPT_VERSION, usage };
   }
 
@@ -282,21 +317,3 @@ export class AnthropicProvider implements AiProvider {
   }
 }
 
-function normaliseTiers(p: ItemProfile): ItemProfile {
-  const fix = <T extends { confidence: number; tier: ItemProfile["identityTier"] } | null>(f: T): T => (f ? { ...f, tier: tierFromConfidence(f.confidence) } : f);
-  return {
-    ...p,
-    itemName: fix(p.itemName),
-    brand: fix(p.brand),
-    model: fix(p.model),
-    modelNumber: fix(p.modelNumber),
-    color: fix(p.color),
-    material: fix(p.material),
-    size: fix(p.size),
-    dimensions: fix(p.dimensions),
-    approximateAge: fix(p.approximateAge),
-    attributes: p.attributes.map((a) => ({ ...a, field: fix(a.field) })),
-    condition: { ...p.condition, tier: tierFromConfidence(p.condition.confidence) },
-    identityTier: tierFromConfidence(p.identityConfidence),
-  };
-}

@@ -108,6 +108,12 @@ fails at the first photo. Either set `ANTHROPIC_WORKSPACE_ID` to the workspace's
 Settings → Workspaces, in the workspace's own page) or create a replacement key from inside a
 workspace, which carries its own scope and needs no header.
 
+Signed in, `GET /api/health/ai` sends the smallest possible real request for each structured-output
+schema and reports which the API accepts. It is the counterpart to the storage probe: a key-scope
+problem and a schema the API will not compile look identical from the seller's side — the job just
+says identification failed — and this names which schema failed and why, from the deployment's own
+key. `max_tokens: 1` on the cheapest model keeps a probe's cost at effectively nothing.
+
 Without `ANTHROPIC_API_KEY` and eBay credentials the app runs in labelled Demo mode, which is a
 fine way to try the hosted version before paying for anything.
 
