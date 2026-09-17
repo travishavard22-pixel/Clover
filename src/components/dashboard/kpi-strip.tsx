@@ -48,7 +48,9 @@ export function KpiStrip({ m }: { m: DashboardMetrics }) {
               {/* Exactly one font-size class: cn() concatenates, it does not merge Tailwind classes,
                   so emitting both text-[1.65rem] and text-xl left the arbitrary value winning and
                   long values truncating instead of shrinking. */}
-              <span className={cn("display truncate leading-none text-primary", t.value.length > 6 ? "text-xl" : "text-[1.65rem]")}>{t.value}</span>
+              {/* leading-none goes last: a Tailwind text-<size> also sets a line-height, so cn()
+                  now resolves it away if it comes first. */}
+              <span className={cn("display truncate text-primary", t.value.length > 6 ? "text-xl" : "text-[1.65rem]", "leading-none")}>{t.value}</span>
               {t.spark && t.spark.length > 1 && <Sparkline values={t.spark} width={64} height={24} className="shrink-0 mb-0.5" />}
             </div>
             {t.delta ? (

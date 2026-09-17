@@ -44,8 +44,10 @@ export function MarketplaceDots({ publications, soldMarketplace, size = "md", cl
           key={p.id}
           title={`${MARKETPLACES[p.marketplace].name} · ${STATUS_LABEL[p.status]}${p.mode === "ASSISTED" ? " · assisted" : ""}`}
           className={cn(
-            "flex items-center justify-center rounded-full border-[1.5px] bg-surface-raised font-semibold leading-none text-secondary",
+            "flex items-center justify-center rounded-full border-[1.5px] bg-surface-raised font-semibold text-secondary",
             size === "sm" ? "size-5 text-[10px]" : "size-6 text-[11px]",
+            // After the size: a text-<size> carries a line-height, which would otherwise win.
+            "leading-none",
             ring(p.status),
           )}
         >

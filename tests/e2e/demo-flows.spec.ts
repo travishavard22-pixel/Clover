@@ -7,7 +7,10 @@ test.describe("seeded demo account", () => {
     // is the pre-05:00 one, so pinning only the "Good ..." three made this fail on overnight CI runs.
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/Good (morning|afternoon|evening)|Working late/);
     await expect(page.getByText(/Needs attention/i).first()).toBeVisible();
-    await expect(page.getByText(/Demo data/i).first()).toBeVisible();
+    // Two "Demo data" badges render: the top bar's is deliberately `hidden sm:inline-flex`, so on a
+    // phone only the page header's is on screen. Assert a visible one rather than whichever comes
+    // first in the DOM — .first() used to pass only because cn() did not resolve `hidden`.
+    await expect(page.getByText(/Demo data/i).filter({ visible: true }).first()).toBeVisible();
   });
 
   test("inventory lists seeded items and filters by status", async ({ page }) => {
