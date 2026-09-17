@@ -93,6 +93,37 @@ describe("hydrateProfile", () => {
     }
   });
 
+  it("maps the synonyms a model reaches for", () => {
+    // A miss is not an error — it lands in attributes and stays visible — but it lands in the wrong
+    // place, so `brand` would read empty while "Manufacturer" sat among the specifics.
+    const cases: Array<[string, "brand" | "model" | "modelNumber" | "color" | "material" | "dimensions" | "approximateAge"]> = [
+      ["Manufacturer", "brand"],
+      ["make", "brand"],
+      ["Brand Name", "brand"],
+      ["Model Name", "model"],
+      ["SKU", "modelNumber"],
+      ["Part Number", "modelNumber"],
+      ["MPN", "modelNumber"],
+      ["colour", "color"],
+      ["Materials", "material"],
+      ["Measurements", "dimensions"],
+      ["Year", "approximateAge"],
+      ["Era", "approximateAge"],
+    ];
+    for (const [key, target] of cases) {
+      const p = hydrateProfile(wire([fact(key, "x", 0.9)]));
+      expect(p[target]?.value, `${key} should map to ${target}`).toBe("x");
+      expect(p.attributes, `${key} should not also be an attribute`).toEqual([]);
+    }
+  });
+
+  it("keeps a serial number out of modelNumber", () => {
+    // Different thing, and mapping it would displace a genuine part number.
+    const p = hydrateProfile(wire([fact("Serial Number", "1234567", 0.95)]));
+    expect(p.modelNumber).toBeNull();
+    expect(p.attributes[0]!.name).toBe("Serial Number");
+  });
+
   it("keeps an unrecognised key as an attribute under its original name", () => {
     const p = hydrateProfile(wire([fact("Lens thread", "39mm", 0.8)]));
     expect(p.attributes).toHaveLength(1);
