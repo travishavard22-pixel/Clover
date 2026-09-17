@@ -31,6 +31,9 @@ const schema = z.object({
   CLOVER_DEMO_MODE: boolish,
 
   ANTHROPIC_API_KEY: z.string().optional(),
+  // Only needed for an organization-level key. Keys created inside a workspace carry their own
+  // scope; an unscoped one is rejected with a 400 until the request names a workspace.
+  ANTHROPIC_WORKSPACE_ID: z.string().optional(),
   CLOVER_MODEL_IDENTIFY: z.string().default("claude-opus-5"),
   CLOVER_MODEL_WRITE: z.string().default("claude-opus-5"),
   CLOVER_MODEL_CHECK: z.string().default("claude-haiku-4-5"),
