@@ -27,7 +27,7 @@ export function ProvidersSection({ capabilities }: { capabilities: Capabilities 
         {ROWS.map((r) => {
           const on = capabilities[r.key];
           return (
-            <div key={r.key} className="grid min-w-0 gap-2 py-4 sm:grid-cols-[1fr_auto] sm:items-start">
+            <div key={r.key} className="grid min-w-0 grid-cols-1 gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium text-primary">{r.name}</span>

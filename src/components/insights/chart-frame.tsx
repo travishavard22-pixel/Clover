@@ -28,27 +28,34 @@ export function ChartFrame({
       <div className="mt-4 min-h-[220px] flex-1">
         {empty ? <div className="flex h-full min-h-[220px] items-center justify-center rounded-sm border border-dashed border-border-default px-6 text-center text-sm text-muted">{empty}</div> : children}
       </div>
-      <table className="sr-only">
-        <caption>{table.caption}</caption>
-        <thead>
-          <tr>
-            {table.columns.map((c) => (
-              <th key={c} scope="col">
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {table.rows.map((r, i) => (
-            <tr key={i}>
-              {r.map((v, j) => (
-                <td key={j}>{v}</td>
+      {/* The hiding goes on a wrapper, not on the table. `sr-only` works by pinning a box to 1×1
+          with overflow hidden, and a table ignores that: table layout takes the larger of the
+          specified and min-content width, so the table laid out at its full width and — being
+          absolutely positioned — dragged the page's scroll width out with it. On /insights that
+          was 400px of sideways panning on a phone from five invisible tables. */}
+      <div className="sr-only">
+        <table>
+          <caption>{table.caption}</caption>
+          <thead>
+            <tr>
+              {table.columns.map((c) => (
+                <th key={c} scope="col">
+                  {c}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {table.rows.map((r, i) => (
+              <tr key={i}>
+                {r.map((v, j) => (
+                  <td key={j}>{v}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

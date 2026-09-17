@@ -3,7 +3,7 @@ import { CloverWordmark } from "@/components/brand/logo";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
+    <div className="grid min-h-dvh grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <aside aria-label="About Clover" className="relative hidden overflow-hidden bg-surface-inverse text-inverse lg:block">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,oklch(0.32_0.08_152/0.6),transparent_55%)]" aria-hidden />
         <div className="relative flex h-full flex-col justify-between p-12">

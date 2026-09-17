@@ -37,7 +37,7 @@ export default async function SellPage() {
     <Page>
       <PageHeader serif title="What are you selling?" description="Two to four photos is plenty. Clover identifies the item, checks what similar ones sold for, and drafts the listing for you to review." />
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-12">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-12">
         <section aria-labelledby="sell-start" className="flex flex-col gap-3 lg:sticky lg:top-[calc(var(--topbar-h)+2rem)] lg:self-start">
           <h2 id="sell-start" className="sr-only">
             Start with photos

@@ -49,8 +49,8 @@ export default async function HomePage() {
           <KpiStrip m={metrics} />
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-12">
-          <div className="space-y-6 lg:col-span-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="min-w-0 space-y-6 lg:col-span-8">
             <section className="surface-card p-4 md:p-5" aria-labelledby="attention-heading">
               <div className="mb-2 flex items-baseline justify-between">
                 <h2 id="attention-heading" className="text-base font-semibold text-primary">
@@ -67,7 +67,7 @@ export default async function HomePage() {
             <KpiStrip m={metrics} />
             <RecentItems items={recent.items} />
           </div>
-          <div className="space-y-6 lg:col-span-4">
+          <div className="min-w-0 space-y-6 lg:col-span-4">
             <SellCta />
             <BestMarketplaceCard m={metrics} />
             <section className="surface-card p-4" aria-labelledby="pulse-heading">

@@ -8,7 +8,7 @@ export default function ItemLoading() {
         <Skeleton className="h-3 w-40" />
         <Skeleton className="mt-3 h-8 w-72 max-w-full" />
       </div>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           <div className="surface-card p-5">
             <Skeleton className="h-4 w-24" />
