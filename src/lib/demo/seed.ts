@@ -12,6 +12,7 @@ import { DEMO_CATALOG, catalogBySlug } from "./catalog";
 import { markSold } from "../inventory/sold";
 import { estimateFees } from "../marketplaces/registry";
 import { notify } from "../notifications";
+import { acquireSeedLock } from "./seed-lock";
 
 export const DEMO_EMAIL = "demo@clover.local";
 export const DEMO_PASSWORD = "clover-demo-2026";
@@ -41,6 +42,24 @@ const DEMO_PLAN: Array<{ slug: string; status: "DRAFT" | "READY" | "LISTED" | "O
   ];
 
 export async function seedDemoAccount(): Promise<{ email: string; items: number }> {
+  // Only one process may rebuild the account. Every service built from this repo's Dockerfile
+  // inherits a start command that seeds, so two containers can boot together; a run that loses the
+  // race leaves the account alone rather than deleting items the winner is still attaching photos
+  // to, and the next boot reconciles whatever is left incomplete.
+  const lock = await acquireSeedLock();
+  if (!lock) {
+    const items = await db.item.count({ where: { user: { email: DEMO_EMAIL } } });
+    console.warn("[demo-seed] another process is seeding this database — skipping this run.");
+    return { email: DEMO_EMAIL, items };
+  }
+  try {
+    return await seedUnderLock();
+  } finally {
+    await lock.release();
+  }
+}
+
+async function seedUnderLock(): Promise<{ email: string; items: number }> {
   const user = await ensureUser();
   const existing = await db.item.count({ where: { userId: user.id } });
   // A seed that died partway (a storage write failing on the first photo, say) leaves items behind.

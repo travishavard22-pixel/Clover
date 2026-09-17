@@ -26,16 +26,45 @@ background, nightly automations, photos in a bucket, and daily database backups.
 
 ## 3. Database and services (Railway)
 
+Config as Code (`railway.json`) is deprecated — Railway refuses it on new services and stops
+reading existing files on 2026-12-01 — so the services are described in `.railway/railway.ts`
+(Infrastructure as Code) instead. That file is applied with the CLI, not read during a deploy.
+
+The declarative route, once the project and database exist:
+
+```bash
+npm install -g @railway/cli   # or: brew install railwayapp/railway/railway
+railway login
+railway link                  # pick the project and the production environment
+railway config plan           # review — it must not show deletes of services, volumes or variables
+railway config apply
+```
+
+`railway config plan` is read-only. Read it before applying: the spec lists every variable each
+service holds precisely because an apply treats an omitted variable as a deletion.
+
+Setting it up by hand instead:
+
 1. **New Project → Deploy PostgreSQL.** This creates the database service.
-2. **New Service → GitHub Repo → this repository.** Name it `web`. Railway reads `railway.json`
-   from the repo root: it builds the Dockerfile, runs migrations on start, and health-checks
-   `/api/health`.
-3. **New Service → GitHub Repo → this repository** again. Name it `worker`. In its **Settings →
-   Config-as-code**, set the path to `railway.worker.json`. This service runs the job worker.
-4. Optional: a third service from the same repo named `automations`, config path
-   `railway.automations.json`. It runs the nightly recommendations at 09:00 UTC and exits.
+2. **New Service → GitHub Repo → this repository.** Name it `web`. Railway builds the Dockerfile,
+   whose `CMD` runs migrations and the demo seed before starting Next.js. In **Settings** set the
+   healthcheck path to `/api/health` with a 300s timeout — the first boot seeds the catalogue and
+   takes about a minute.
+3. **New Service → GitHub Repo → this repository** again, named `worker`. Set its **start command**
+   to `pnpm exec tsx scripts/worker.ts`. This matters: without it the service inherits the
+   Dockerfile's `CMD` and runs a second web server *and* a second demo seed, and two seeds racing
+   each other is a real failure — the loser deletes items the winner is still attaching photos to.
+   (The seed takes a Postgres advisory lock, so the race is now survivable rather than corrupting,
+   but the worker still should not be seeding or serving HTTP.)
+4. Optional: a third service from the same repo named `automations`, with start command
+   `pnpm exec tsx -e "import('./src/lib/automations').then((m) => m.enqueueAutomationsForAllUsers()).then(() => process.exit(0))"`,
+   a **cron schedule** of `0 9 * * *` and restart policy `NEVER`. It enqueues the nightly
+   recommendations and exits.
 5. On the `web` service, open **Settings → Networking → Generate Domain** to get a temporary
    `*.up.railway.app` address. You will replace it with your own domain in step 5.
+
+The cron schedule, restart policy and Dockerfile path live as service settings either way: the IaC
+DSL has no documented fields for them, so `.railway/railway.ts` does not try to own them.
 
 ## 4. Environment variables
 
@@ -49,15 +78,27 @@ Set these on **both** `web` and `worker` (and `automations` if you added it). Ra
 | `BETTER_AUTH_SECRET` | Run `openssl rand -base64 32` on your computer, paste the result |
 | `CLOVER_ENCRYPTION_KEYS` | `v1:` followed by another `openssl rand -base64 32` |
 | `STORAGE_DRIVER` | `s3` |
-| `S3_BUCKET` | `clover-photos` |
+| `S3_BUCKET` | the bucket's **name**, e.g. `clover-photos` |
 | `S3_REGION` | `auto` |
-| `S3_ENDPOINT` | the R2 endpoint from step 2 |
+| `S3_ENDPOINT` | the R2 endpoint from step 2, with **no bucket name appended** |
 | `S3_ACCESS_KEY_ID` | from step 2 |
 | `S3_SECRET_ACCESS_KEY` | from step 2 |
 | `CLOVER_INLINE_WORKER` | `0` on `web` only (the worker service does the jobs) |
 | `ANTHROPIC_API_KEY` | your key from console.anthropic.com, when you want live AI |
 | `FCM_SERVICE_ACCOUNT_JSON` | Firebase service account JSON (base64 is fine) — push to Android; see `native-apps.md` |
 | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` | Apple push key (.p8 contents) — push to iPhones; see `native-apps.md` |
+
+Two mistakes in that table are easy to make and hard to read back, because R2 only rejects them at
+the first write — long after the deploy goes green:
+
+- **`S3_BUCKET` is the bucket name, not the API token's label.** Pasting the label (for example
+  `R2 Account Token`) fails every upload with `InvalidBucketName: The specified bucket name is not
+  valid`, and the bucket name R2 echoes in that error is the wrong value you set.
+- **`S3_ENDPOINT` ends at the account host.** `https://<account-id>.r2.cloudflarestorage.com` is
+  right; appending `/<bucket>` is not.
+
+Signed in, `GET /api/health/storage` round-trips a small object through the driver and returns the
+driver's own error, which is the quickest way to confirm the bucket before hunting through logs.
 
 Without `ANTHROPIC_API_KEY` and eBay credentials the app runs in labelled Demo mode, which is a
 fine way to try the hosted version before paying for anything.
