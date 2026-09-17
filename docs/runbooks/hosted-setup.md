@@ -85,6 +85,7 @@ Set these on **both** `web` and `worker` (and `automations` if you added it). Ra
 | `S3_SECRET_ACCESS_KEY` | from step 2 |
 | `CLOVER_INLINE_WORKER` | `0` on `web` only (the worker service does the jobs) |
 | `ANTHROPIC_API_KEY` | your key from console.anthropic.com, when you want live AI |
+| `ANTHROPIC_WORKSPACE_ID` | only for an organization-level key — see below |
 | `FCM_SERVICE_ACCOUNT_JSON` | Firebase service account JSON (base64 is fine) — push to Android; see `native-apps.md` |
 | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` | Apple push key (.p8 contents) — push to iPhones; see `native-apps.md` |
 
@@ -99,6 +100,13 @@ the first write — long after the deploy goes green:
 
 Signed in, `GET /api/health/storage` round-trips a small object through the driver and returns the
 driver's own error, which is the quickest way to confirm the bucket before hunting through logs.
+
+A third easy-to-miss one is the Anthropic key's scope. A key created at the **organization** level
+is not scoped to a workspace, and the API rejects every request with a 400 saying to include an
+`anthropic-workspace-id` header — the deploy is healthy and the key is valid, but identification
+fails at the first photo. Either set `ANTHROPIC_WORKSPACE_ID` to the workspace's ID (Console →
+Settings → Workspaces, in the workspace's own page) or create a replacement key from inside a
+workspace, which carries its own scope and needs no header.
 
 Without `ANTHROPIC_API_KEY` and eBay credentials the app runs in labelled Demo mode, which is a
 fine way to try the hosted version before paying for anything.

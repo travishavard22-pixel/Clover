@@ -41,18 +41,41 @@ function mapError(err: unknown): never {
   if (err instanceof Anthropic.RateLimitError) throw new AiUnavailableError("The AI service is rate-limited right now.", true);
   if (err instanceof Anthropic.InternalServerError) throw new AiUnavailableError("The AI service had an internal error.", true);
   if (err instanceof Anthropic.AuthenticationError) throw new AiUnavailableError("AI credentials are invalid.", false);
-  if (err instanceof Anthropic.BadRequestError) throw new AiUnavailableError(`AI request rejected: ${err.message}`, false);
+  if (err instanceof Anthropic.BadRequestError) {
+    // This one is a misconfiguration, not a bad request, and the raw 400 body is a wall of JSON in
+    // the UI. Say what to change instead: the key is an organization-level one and needs either a
+    // workspace named on every request or a replacement created inside a workspace.
+    if (err.message.includes("anthropic-workspace-id")) {
+      throw new AiUnavailableError(
+        "The Anthropic API key is not scoped to a workspace. Set ANTHROPIC_WORKSPACE_ID to the workspace's ID, or replace the key with one created inside a workspace.",
+        false,
+      );
+    }
+    throw new AiUnavailableError(`AI request rejected: ${err.message}`, false);
+  }
   if (err instanceof Anthropic.APIConnectionError) throw new AiUnavailableError("Could not reach the AI service.", true);
   if (err instanceof Anthropic.APIError) throw new AiUnavailableError(`AI error ${err.status}: ${err.message}`, (err.status ?? 500) >= 500);
   throw err;
+}
+
+/**
+ * Default headers for the client. An organization-level API key is not scoped to a workspace, and
+ * the API rejects those with a 400 unless the request names one; the SDK has no option for it, so
+ * it travels as a header. A key created inside a workspace carries its own scope and needs none of
+ * this, and sending the header empty is itself a bad request — so an unset or blank value yields no
+ * header at all rather than a blank one.
+ */
+export function workspaceHeaders(workspaceId: string | undefined): Record<string, string> | undefined {
+  const ws = workspaceId?.trim();
+  return ws ? { "anthropic-workspace-id": ws } : undefined;
 }
 
 export class AnthropicProvider implements AiProvider {
   readonly name = "anthropic" as const;
   private client: Anthropic;
 
-  constructor(apiKey = env.ANTHROPIC_API_KEY) {
-    this.client = new Anthropic({ apiKey, maxRetries: 2, timeout: 120_000 });
+  constructor(apiKey = env.ANTHROPIC_API_KEY, workspaceId = env.ANTHROPIC_WORKSPACE_ID) {
+    this.client = new Anthropic({ apiKey, maxRetries: 2, timeout: 120_000, defaultHeaders: workspaceHeaders(workspaceId) });
   }
 
   private async parse<S extends z.ZodType>(opts: {
