@@ -151,10 +151,22 @@ class S3Driver implements StorageDriver {
 }
 
 const g = globalThis as unknown as { __cloverStorage?: StorageDriver };
+/**
+ * Files on the container's own disk. In production that disk is ephemeral and private to a single
+ * service, so a separate worker cannot read what the web service wrote — say so at startup rather
+ * than failing later with a photo that cannot be found.
+ */
+function localDriver(): LocalDriver {
+  if (env.NODE_ENV === "production") {
+    console.warn("[storage] STORAGE_DRIVER=local in production: uploads stay on this container's disk, are lost on redeploy, and are invisible to other services. Set STORAGE_DRIVER=s3 with the S3_* variables (docs/runbooks/hosted-setup.md).");
+  }
+  return new LocalDriver(path.resolve(env.STORAGE_LOCAL_DIR));
+}
+
 export const storage: StorageDriver =
   g.__cloverStorage ??
   (g.__cloverStorage =
-    env.STORAGE_DRIVER === "s3" && env.S3_BUCKET ? new S3Driver(env.S3_BUCKET) : new LocalDriver(path.resolve(env.STORAGE_LOCAL_DIR)));
+    env.STORAGE_DRIVER === "s3" && env.S3_BUCKET ? new S3Driver(env.S3_BUCKET) : localDriver());
 
 export function photoKey(userId: string, itemId: string, photoId: string, variant: "orig" | "thumb" | "web" | "studio", ext = "jpg") {
   return `users/${userId}/items/${itemId}/${photoId}-${variant}.${ext}`;
