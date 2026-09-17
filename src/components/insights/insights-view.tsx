@@ -24,7 +24,7 @@ export function InsightsView({ metrics, realisation }: { metrics: DashboardMetri
   const scatterMax = Math.max(1, ...realisation.flatMap((r) => [r.soldPrice, r.estimate]));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartFrame
         title="Revenue over time"
         className="lg:col-span-2"

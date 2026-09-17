@@ -93,7 +93,7 @@ export function AnalysisSequence({ itemId, jobId, initialSteps, initialStatus, c
   const showSlow = slow && running && !dismissedSlow;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14">
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {announce}
       </div>

@@ -82,7 +82,9 @@ export function AttentionFeed({ rows: initial, compact }: { rows: AttentionRow[]
                   {row.severity === 1 && <span className="text-warning">· act now</span>}
                   <span className="ml-auto font-normal normal-case tracking-normal tabular">{relativeTime(row.at)}</span>
                 </div>
-                <p className="mt-0.5 truncate text-sm font-medium text-primary">{row.title}</p>
+                {/* Two lines, not an ellipsis. These titles carry the actionable part at the end
+                    ("Lower … price to $85"), and on a phone a single line cut it off exactly there. */}
+                <p className="mt-0.5 line-clamp-2 text-sm font-medium text-primary">{row.title}</p>
                 <p className="line-clamp-2 text-sm text-secondary">{row.body}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Link href={row.href} className={buttonClasses(row.severity === 1 ? "primary" : "outline", "sm", "h-8")}>

@@ -5,7 +5,7 @@ import { PhotoFrames } from "./photo-frames";
 
 export function Hero() {
   return (
-    <section className="content-max relative isolate grid gap-12 gutter py-16 md:grid-cols-[1.05fr_1fr] md:items-center md:py-28">
+    <section className="content-max relative isolate grid grid-cols-1 gap-12 gutter py-16 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] md:items-center md:py-28">
       <div aria-hidden className="hero-wash pointer-events-none absolute inset-0 -z-10" />
       <div className="max-w-xl">
         <p className="mb-4 text-xs font-medium uppercase tracking-[0.18em] text-muted">AI resale assistant</p>

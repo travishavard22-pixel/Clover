@@ -218,7 +218,7 @@ export function StudioWorkspace({ item, initial, segmentation, demo, initialPhot
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="order-1 min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
           <StudioCanvas original={source ? { src: source.url, alt: `Original photo of ${item.title}` } : null} studio={studioImage} loading={canvas.kind === "preview" && preview.status === "loading"} error={canvas.kind === "preview" ? preview.error : null} view={view} onViewChange={setView} />
           {job && <RenderProgress key={job.id} jobId={job.id} initialSteps={job.steps} onDone={onJobDone} onRetry={() => void generate()} />}

@@ -102,7 +102,7 @@ export function ItemWorkspace({ initial }: { initial: ItemSummary }) {
       </p>
       <ItemHeader summary={summary} onTitle={onTitle} onRefresh={refresh} announce={announce} />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-6">
           <section id="photos" aria-labelledby="photos-heading" className="scroll-mt-24">
             <Card>

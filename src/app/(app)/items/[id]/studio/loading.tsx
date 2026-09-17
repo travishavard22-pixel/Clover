@@ -10,7 +10,7 @@ export default function StudioLoading() {
         <Skeleton className="mt-3 h-8 w-64" />
         <Skeleton className="mt-3 h-4 w-80 max-w-full" />
       </div>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="space-y-4">
           <Skeleton className="aspect-[4/3] w-full rounded-lg lg:aspect-auto lg:h-[min(62dvh,760px)]" />
           <div className="flex gap-2">
