@@ -3,7 +3,9 @@ import { expect, test } from "@playwright/test";
 test.describe("seeded demo account", () => {
   test("home leads with what needs attention and labels estimates", async ({ page }) => {
     await page.goto("/home");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(/Good (morning|afternoon|evening)/);
+    // The greeting has four time-of-day variants (see src/app/(app)/home/page.tsx); "Working late"
+    // is the pre-05:00 one, so pinning only the "Good ..." three made this fail on overnight CI runs.
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/Good (morning|afternoon|evening)|Working late/);
     await expect(page.getByText(/Needs attention/i).first()).toBeVisible();
     await expect(page.getByText(/Demo data/i).first()).toBeVisible();
   });

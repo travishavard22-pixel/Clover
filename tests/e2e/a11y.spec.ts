@@ -6,6 +6,13 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
  * Fails only on "serious"/"critical" violations; "moderate"/"minor" are logged and attached.
  */
 
+// Scan with reduced motion. Cards fade in from opacity 0 with a per-index stagger, and motion/react
+// drives that opacity from JS rather than the Web Animations API, so a scan can land on a half-opaque
+// card and axe reports the blended colour as a contrast violation the settled page does not have.
+// Under prefers-reduced-motion the components skip the entrance animation entirely (useReducedMotion
+// in listing-card.tsx), which removes the race instead of racing it. Colours are unaffected.
+test.use({ reducedMotion: "reduce" });
+
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 // Rules to disable. Only add "color-contrast" here if it produces false positives on OKLCH colors.
 const DISABLED_RULES: string[] = [];
@@ -40,6 +47,21 @@ async function settle(page: Page) {
   await page.waitForLoadState("networkidle").catch(() => {});
   // Main heading (h1) of the page; some routes render it slightly after hydration.
   await page.locator("h1").first().waitFor({ state: "attached", timeout: 30_000 }).catch(() => {});
+
+  // Any remaining CSS entrance animations (the reduced-motion path still does a quick fade) must
+  // finish before axe reads colours, for the same reason as the reducedMotion setting above.
+  await page
+    .waitForFunction(
+      () =>
+        document
+          .getAnimations()
+          // Looping decoration (shimmer) never finishes; only wait on the finite ones.
+          .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+          .every((a) => a.playState === "finished" || a.playState === "idle"),
+      undefined,
+      { timeout: 10_000 },
+    )
+    .catch(() => {});
   await page.waitForTimeout(250);
 }
 
