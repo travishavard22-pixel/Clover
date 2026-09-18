@@ -152,6 +152,18 @@ async function appStylesheets(page: Page): Promise<string[]> {
 async function capture(browser: Browser, device: keyof typeof DEVICES) {
   mkdirSync(`${RAW}/${device}`, { recursive: true });
   const ctx = await browser.newContext({ ...DEVICES[device], baseURL: BASE, colorScheme: "light", reducedMotion: "reduce" });
+  // Next's dev tools badge floats over the bottom of every page in `next dev`. It does not exist
+  // in a production build, so leaving it in a store screenshot would be showing something the app
+  // never shows.
+  await ctx.addInitScript(() => {
+    const hide = () => {
+      const style = document.createElement("style");
+      style.textContent = "nextjs-portal{display:none!important}";
+      document.head?.appendChild(style);
+    };
+    if (document.head) hide();
+    else document.addEventListener("DOMContentLoaded", hide, { once: true });
+  });
   const page = await ctx.newPage();
   await signIn(page);
   writeFileSync(`${RAW}/stylesheets.json`, JSON.stringify(await appStylesheets(page)));
@@ -207,13 +219,37 @@ ${o.css.map((href) => `<link rel="stylesheet" href="${href}">`).join("\n")}
     outline: ${Math.max(2, Math.round(o.width * 0.002))}px solid rgba(255,255,255,.34);
     outline-offset: ${-Math.max(2, Math.round(o.width * 0.002))}px;
   }
-  .device img { display: block; width: 100%; }
+  /* Fills the device box by cropping the foot of the screen, rather than leaving a white strip
+     under it: the frame should read as a phone standing in the canvas. */
+  .device img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
 </style></head>
 <body><div class="sheet">
   <h1>${o.head.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</h1>
   <p>${o.sub.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>
   <div class="device"><img src="data:image/png;base64,${o.shot}"></div>
 </div></body></html>`;
+}
+
+/**
+ * Fails when the frame did not actually render, rather than writing a plausible-looking PNG of
+ * whatever the page happened to contain. Both ways this broke — an unstyled frame and the app's
+ * own page rendering over it — produced files of exactly the right size, so size proves nothing.
+ */
+async function assertFramed(page: Page, head: string) {
+  const state = await page.evaluate(() => {
+    const sheet = document.querySelector<HTMLElement>(".sheet");
+    const h1 = document.querySelector("h1");
+    return {
+      sheet: Boolean(sheet),
+      heading: h1?.textContent ?? null,
+      background: sheet ? getComputedStyle(sheet).backgroundImage : "",
+      shot: Boolean(document.querySelector(".device img")),
+    };
+  });
+  const first = head.split("\n")[0]!;
+  if (!state.sheet || !state.shot) throw new Error(`frame did not render (sheet: ${state.sheet}, screenshot: ${state.shot})`);
+  if (!state.heading?.startsWith(first)) throw new Error(`frame shows the wrong heading: ${JSON.stringify(state.heading)}`);
+  if (!state.background.includes("gradient")) throw new Error("frame lost the brand gradient: the app's stylesheet did not apply");
 }
 
 /** Stores reject alpha channels, so every asset is flattened to 24-bit RGB on the way out. */
@@ -261,6 +297,14 @@ async function main() {
 
   const css: string[] = JSON.parse(readFileSync(`${RAW}/stylesheets.json`, "utf8"));
   const page = await (await browser.newContext({ viewport: { width: 1290, height: 2796 }, deviceScaleFactor: 1 })).newPage();
+  // The frame pages are written with setContent, which keeps the current document URL, and the
+  // URL decides two things:
+  //   - about:blank gives the document an opaque origin, and Chromium then refuses to apply the
+  //     app's stylesheet: the frames come out white with Times New Roman.
+  //   - an app page leaves Next's client runtime alive in the document, and it re-renders the
+  //     route over the injected frame: the frames come out as that page.
+  // An API route is same-origin and ships no client JavaScript, so it avoids both.
+  await page.goto(`${BASE}/api/health`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   const written: string[] = [];
 
   for (const t of TARGETS) {
@@ -273,6 +317,7 @@ async function main() {
         { waitUntil: "networkidle" },
       );
       await page.evaluate(() => document.fonts.ready);
+      await assertFramed(page, shot.head);
       const file = `${OUT}/${t.dir}/${shot.id}.png`;
       const meta = await writeOpaque(file, await page.screenshot({ type: "png" }));
       written.push(`${file} ${meta.width}×${meta.height}`);
