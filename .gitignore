@@ -15,3 +15,6 @@ test-results
 .next-*
 tsconfig.tsbuildinfo
 .scratch
+
+# Store listing assets: regenerated per release by `pnpm store:screenshots`, not reviewed as source.
+artifacts/
