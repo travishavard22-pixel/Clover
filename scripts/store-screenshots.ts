@@ -152,24 +152,18 @@ async function appStylesheets(page: Page): Promise<string[]> {
 async function capture(browser: Browser, device: keyof typeof DEVICES) {
   mkdirSync(`${RAW}/${device}`, { recursive: true });
   const ctx = await browser.newContext({ ...DEVICES[device], baseURL: BASE, colorScheme: "light", reducedMotion: "reduce" });
-  // Next's dev tools badge floats over the bottom of every page in `next dev`. It does not exist
-  // in a production build, so leaving it in a store screenshot would be showing something the app
-  // never shows.
-  await ctx.addInitScript(() => {
-    const hide = () => {
-      const style = document.createElement("style");
-      style.textContent = "nextjs-portal{display:none!important}";
-      document.head?.appendChild(style);
-    };
-    if (document.head) hide();
-    else document.addEventListener("DOMContentLoaded", hide, { once: true });
-  });
   const page = await ctx.newPage();
   await signIn(page);
   writeFileSync(`${RAW}/stylesheets.json`, JSON.stringify(await appStylesheets(page)));
   for (const shot of SHOTS) {
     const started = Date.now();
     await shot.go(page);
+    // Next's dev indicator sits over the bottom-left of every page under `next dev` — a dark "N"
+    // that expands into an issue pill, right on top of the app's own Home tab. A production build
+    // has none, so a screenshot containing it shows something the app never shows. The node is
+    // removed rather than hidden with CSS: it renders inside a shadow root, where a `display: none`
+    // aimed at the host is not reliably the winning declaration.
+    await page.evaluate(() => document.querySelectorAll("nextjs-portal").forEach((el) => el.remove()));
     writeFileSync(`${RAW}/${device}/${shot.id}.png`, await page.screenshot({ type: "png" }));
     console.log(`  captured ${device}/${shot.id} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
   }
