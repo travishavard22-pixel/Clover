@@ -65,9 +65,10 @@ competitors. It is the top leaf — an off-axis position reads as accidental rat
 Construction rules (geometry in `src/components/brand/clover.ts`, the single source both the app's
 mark and `pnpm icons` draw from — two copies of a logo drift):
 
-- One leaf primitive: a heart with its tip at the bottom of a 24-unit box, placed four times with
-  the tips at the centre, rotated 0/90/180/270°. Leaves reach ~19 units, so at `scale` 1.38 the
-  mark spans about 52 of a 64-unit tile.
+- One leaf primitive: a heart with its tip at the bottom of a 24-unit box, placed four times
+  rotated 0/90/180/270° and pushed 3 units out along its own axis, which opens a cleft between
+  neighbours so four leaves can be counted. Leaves reach ~19 units, so at `scale` 1.3 the mark
+  spans about 55 of a 64-unit tile.
 - **In the app, single colour.** The mark takes `currentColor` and expresses the lucky leaf as 55%
   fill-opacity, so one drawing works green on cream, cream on green and in dark mode. A second
   hardcoded fill would only work on one background.
@@ -77,7 +78,12 @@ mark and `pnpm icons` draw from — two copies of a logo drift):
   `--green-6`, cream leaves, `--green-2` lucky leaf). A flat fill sits flatter than everything
   around it on a store page. This is the one place the mark is not single-colour, and it is never
   the in-app mark.
-- Android maskable icons use `scale` 1.1, not 1.38: the OS may crop to a circle of 80% diameter.
+- Android maskable icons use `scale` 1.1, not 1.3: the OS may crop to a circle of 80% diameter.
+  The Android *adaptive* launcher icon is a third size again, set against that platform's own
+  crop — `docs/runbooks/native-apps.md` has the arithmetic.
+- **Make a small mark smaller by scaling the finished mark, not its leaves.** The cleft is
+  measured in tile units rather than leaf units, so lowering `scale` shrinks the leaves while
+  leaving the gaps full width. `cloverFit` is there for this; the launch screen uses it.
 - The iOS touch icon ships square. iOS applies its own mask, and a pre-rounded icon gets
   double-rounded.
 - Minimum size 16px (favicon). Clear space = the height of one leaf on all sides.
@@ -88,8 +94,11 @@ it keeps the counters open at small sizes.
 
 Lock-ups: symbol-left (default), symbol-only (app icon, favicon, avatar), stacked (splash).
 
-App icon: symbol in Paper on a Clover-green tile with a 22% corner radius. Dark tile variant for
-monochrome/tinted iOS icons.
+App icon: symbol in Paper on a Clover-green gradient tile with a 22% corner radius.
+
+Launch screen: the symbol alone, a fifth of the canvas wide, two-tone in the accent green its own
+theme uses — `--green-4` on cream, `--green-3` on ink. Two real greens rather than the in-app
+opacity trick, because a 55%-opacity leaf turns grey against near-black instead of reading green.
 
 ## 4. Colour system
 
