@@ -15,7 +15,7 @@
  * regenerated per release rather than reviewed as source).
  */
 import { chromium, type Browser, type Page } from "@playwright/test";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import sharp from "sharp";
 
 const BASE = process.env.SCREENSHOT_BASE_URL ?? "http://127.0.0.1:3100";
@@ -24,6 +24,16 @@ const DEMO = {
   password: process.env.DEMO_PASSWORD ?? "clover-demo-2026",
 };
 const OUT = "artifacts/store";
+/** Captures are cached here so a phase can be re-run on its own: they are the slow part. */
+const RAW = `${OUT}/.captures`;
+
+/**
+ * Phases, because driving a dev server through twelve screens takes minutes and a single
+ * long-running pass is the thing most likely to be interrupted. `pnpm store:screenshots` runs
+ * them in order; `--phone`, `--tablet` or `--frames` runs one.
+ */
+const argv = process.argv.slice(2);
+const phases = argv.length ? argv.map((a) => a.replace(/^--/, "")) : ["phone", "tablet", "frames"];
 
 /** The two layouts the app has. Captured separately because the tablet is not a stretched phone. */
 const DEVICES = {
@@ -41,12 +51,25 @@ type Shot = {
   go: (page: Page) => Promise<void>;
 };
 
-const settle = async (page: Page, ms = 1200) => {
+const settle = async (page: Page, ms = 700) => {
   await page.waitForLoadState("networkidle").catch(() => {});
-  // Wait for the images on screen, then a beat for the entrance animations to finish.
+  // Wait for the images that are actually on screen, then a beat for the entrance animations.
+  //
+  // Bounded, and only for what is in the viewport: awaiting `decode()` on every <img> hangs
+  // forever, because the ones below the fold are lazy and never load, and a pending decode inside
+  // page.evaluate has nothing to time it out. That is what stalled the first capture run.
   await page
-    .evaluate(() => Promise.all(Array.from(document.images, (i) => (i.complete ? null : i.decode().catch(() => null)))))
-    .catch(() => {});
+    .waitForFunction(
+      () =>
+        Array.from(document.images).every((i) => {
+          const r = i.getBoundingClientRect();
+          const onScreen = r.bottom > 0 && r.top < window.innerHeight && r.width > 0;
+          return !onScreen || i.complete;
+        }),
+      undefined,
+      { timeout: 15_000 },
+    )
+    .catch(() => console.warn("  (images still loading; capturing anyway)"));
   await page.waitForTimeout(ms);
 };
 
@@ -127,19 +150,18 @@ async function appStylesheets(page: Page): Promise<string[]> {
 }
 
 async function capture(browser: Browser, device: keyof typeof DEVICES) {
+  mkdirSync(`${RAW}/${device}`, { recursive: true });
   const ctx = await browser.newContext({ ...DEVICES[device], baseURL: BASE, colorScheme: "light", reducedMotion: "reduce" });
   const page = await ctx.newPage();
   await signIn(page);
-  const css = await appStylesheets(page);
-  if (!css.length) throw new Error("no app stylesheets found: the frames would lose the brand fonts and colours");
-  const shots = new Map<string, Buffer>();
+  writeFileSync(`${RAW}/stylesheets.json`, JSON.stringify(await appStylesheets(page)));
   for (const shot of SHOTS) {
+    const started = Date.now();
     await shot.go(page);
-    shots.set(shot.id, await page.screenshot({ type: "png" }));
-    console.log(`  captured ${device}/${shot.id}`);
+    writeFileSync(`${RAW}/${device}/${shot.id}.png`, await page.screenshot({ type: "png" }));
+    console.log(`  captured ${device}/${shot.id} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
   }
   await ctx.close();
-  return { shots, css };
 }
 
 /** The caption-over-device composition, drawn at the exact pixel size the store wants. */
@@ -226,22 +248,25 @@ ${css.map((href) => `<link rel="stylesheet" href="${href}">`).join("\n")}
 }
 
 async function main() {
-  rmSync(OUT, { recursive: true, force: true });
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined });
-  const captured: Partial<Record<keyof typeof DEVICES, Awaited<ReturnType<typeof capture>>>> = {};
-  for (const device of Object.keys(DEVICES) as Array<keyof typeof DEVICES>) {
+  for (const device of ["phone", "tablet"] as const) {
+    if (!phases.includes(device)) continue;
     console.log(`capturing ${device}…`);
-    captured[device] = await capture(browser, device);
+    await capture(browser, device);
+  }
+  if (!phases.includes("frames")) {
+    await browser.close();
+    return;
   }
 
-  const css = captured.phone!.css;
+  const css: string[] = JSON.parse(readFileSync(`${RAW}/stylesheets.json`, "utf8"));
   const page = await (await browser.newContext({ viewport: { width: 1290, height: 2796 }, deviceScaleFactor: 1 })).newPage();
   const written: string[] = [];
 
   for (const t of TARGETS) {
     mkdirSync(`${OUT}/${t.dir}`, { recursive: true });
     for (const shot of SHOTS) {
-      const png = captured[t.from]!.shots.get(shot.id)!;
+      const png = readFileSync(`${RAW}/${t.from}/${shot.id}.png`);
       await page.setViewportSize({ width: t.width, height: t.height });
       await page.setContent(
         frameHtml({ css, head: shot.head, sub: shot.sub, shot: png.toString("base64"), width: t.width, height: t.height, headPx: t.headPx, subPx: t.subPx }),
