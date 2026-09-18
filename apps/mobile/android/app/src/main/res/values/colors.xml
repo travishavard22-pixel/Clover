@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Clover's greens. Without this file the Android shell inherits Capacitor's defaults, which are
+    Material indigo: the wrong brand in the task switcher and anywhere the platform tints chrome.
+    Hex values are the OKLCH brand tokens converted; see src/styles/tokens.css.
+-->
+<resources>
+    <!-- green-4, the app's accent -->
+    <color name="colorPrimary">#137d41</color>
+    <!-- green-6 -->
+    <color name="colorPrimaryDark">#053e1d</color>
+    <color name="colorAccent">#137d41</color>
+    <!-- The launch screen behind the icon on Android 12+. Token n-1, the app's page background. -->
+    <color name="splash_background">#f8f7f3</color>
+</resources>

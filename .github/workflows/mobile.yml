@@ -54,8 +54,12 @@ jobs:
       - name: Create the iOS project when it is not committed
         run: test -d ios || pnpm exec cap add ios
         working-directory: apps/mobile
-      - name: App icon
-        run: cp ../desktop/app-icon.png ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+      # The iOS project is generated rather than committed, so its icon set and launch screen are
+      # generated too, from the same apps/mobile/assets masters the committed Android ones came
+      # from. npx rather than pnpm dlx: @capacitor/assets needs sharp's install script, which pnpm
+      # blocks by default.
+      - name: App icons and launch screen
+        run: npx -y @capacitor/assets@3.0.5 generate --ios
         working-directory: apps/mobile
       - run: pnpm exec cap sync ios
         working-directory: apps/mobile

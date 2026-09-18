@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark mode: the same near-black the app itself uses for surface-base. -->
+    <color name="splash_background">#131410</color>
+</resources>
