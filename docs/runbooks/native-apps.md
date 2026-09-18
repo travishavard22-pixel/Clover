@@ -167,6 +167,51 @@ The macOS icon is a plain square, as Tauri generates it. Apple's own apps use a 
 shape; if you want that on the dock, round `app-icon.png` before running `tauri icon` — nothing
 downstream assumes it is square.
 
+## Store listings
+
+```bash
+CLOVER_DEMO_MODE=1 pnpm exec tsx prisma/seed.ts   # a realistic account to photograph
+CLOVER_DEMO_MODE=1 pnpm exec next dev -p 3100     # in another terminal
+pnpm store:screenshots
+```
+
+Playwright signs in as the demo seller, photographs six screens at each store's device size, and
+composes them onto the brand gradient with a caption. Output lands in `artifacts/store/`, which is
+git-ignored: these are build products, regenerated per release rather than reviewed as source.
+
+| Asset | Size | Where it goes |
+|---|---|---|
+| 6 × iPhone screenshots | 1290 × 2796 | App Store Connect, the 6.9" display class |
+| 6 × iPad screenshots | 2064 × 2752 | App Store Connect, the 13" iPad class |
+| 6 × phone screenshots | 1080 × 1920 | Play Console, phone form factor |
+| Feature graphic | 1024 × 500 | Play Console (required; it is not a screenshot) |
+| Hi-res icon | 512 × 512 | Play Console — use `public/icons/icon-512.png` |
+| App icon | 1024 × 1024 | App Store Connect — use `public/icons/icon-1024.png` |
+
+Apple accepts one iPhone set and scales it down for smaller phones, so the 6.9" set is the only
+iPhone upload needed. The iPad set is needed while the iOS target stays universal, which is
+Capacitor's default; drop it if you restrict the target to iPhone. Play needs at least two phone
+screenshots and takes up to eight.
+
+**The screenshots are the real app**, driven through real screens on seeded data — Apple requires
+that, and a mockup of a screen the app does not have is a promise it cannot keep. The demo account
+is labelled as demo data inside the app, and those labels are left in the pictures.
+
+Three details the pipeline handles, each of which silently produces a wrong-but-plausible file:
+
+- **No alpha channel.** Both stores reject it. Every asset is flattened to 24-bit RGB and the
+  channel count is asserted before it is written.
+- **No dev-tools badge.** `next dev` floats its issues badge over the corner of every page; a
+  production build has none, so it is hidden for the captures.
+- **The frames really rendered.** The composition is asserted — gradient, heading, screenshot
+  present — because both ways this broke during development (an unstyled frame, and the app
+  re-rendering over the frame) wrote files of exactly the right dimensions.
+
+To change what the listing says, edit `SHOTS` in `scripts/store-screenshots.ts`: each entry is a
+route, a headline and a subhead. `--phone`, `--tablet` and `--frames` run one phase at a time;
+captures are cached under `artifacts/store/.captures/`, so re-wording a caption only re-runs the
+frames.
+
 ## What still needs you
 
 Everything above runs from this repository. These need accounts or keys that only you can create,
@@ -174,6 +219,11 @@ and each is described in its section: the `CLOVER_APP_URL` repository variable; 
 Program membership for iOS and for signing the Mac build; a Google Play Console account and an
 upload keystore; a Windows code-signing certificate; the Tauri updater key pair for auto-update;
 and the Firebase and APNs credentials for push notifications.
+
+Each store also wants listing text from you that no script can produce: the app name and
+subtitle, the description, a support and a privacy-policy URL, the content-rating answers, and
+Apple's data-collection disclosures. The screenshots, icons and the feature graphic are generated
+here; those are not.
 
 ## What is shared and what is not
 
