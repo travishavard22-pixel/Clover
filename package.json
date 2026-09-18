@@ -24,6 +24,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "icons": "tsx scripts/generate-icons.ts",
+  "icons:native": "pnpm icons && cd apps/desktop && pnpm exec tauri icon app-icon.png && cd ../mobile && npx -y @capacitor/assets@3.0.5 generate --android",
     "db:studio": "prisma studio",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:contrast"
