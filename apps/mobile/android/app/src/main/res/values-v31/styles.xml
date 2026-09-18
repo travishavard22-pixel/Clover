@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12 draws the launch screen itself, and ignores the splash image and every splash option
+    in capacitor.config.ts while it does. What it shows instead is the app icon on the colour named
+    here, so without this file a cold start opens on the platform's default white rather than on
+    Clover's cream (or near-black in dark mode — @color/splash_background has a values-night twin).
+
+    Pre-12 devices never see this file and keep using @drawable/splash from values/styles.xml.
+-->
+<resources>
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
+</resources>

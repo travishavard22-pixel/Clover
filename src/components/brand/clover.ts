@@ -72,4 +72,44 @@ export const CLOVER_SCALE = {
   tile: 1.3,
   /** Android maskable: the OS may crop to a circle of 80% diameter, so stay well inside it. */
   maskable: 1.1,
+  /**
+   * Android adaptive icon, the foreground layer handed to `@capacitor/assets`.
+   *
+   * Three numbers decide this one. The adaptive canvas is 108dp; `@capacitor/assets` insets both
+   * layers by 16.7%, so our square lands on the central 72dp; and Android's guidance is to keep
+   * key content inside a 66dp circle, because a launcher's mask may be no larger than that. So the
+   * mark may span 66/72 — 91.6% — of the image we generate. At this scale it spans 86.6%, which is
+   * 62.3dp of the 66dp allowed. Raising it past ~1.38 starts clipping the leaf tips on round masks.
+   */
+  adaptive: 1.3,
 } as const;
+
+/**
+ * How wide the mark is drawn on a launch screen, as a fraction of the canvas.
+ *
+ * Modest on purpose: the launch screen is a full-bleed square that the phone tooling centre-crops
+ * to every device aspect, and it wants a small mark in a lot of space rather than an app icon
+ * blown up to fill the phone. A fifth of the square lands at roughly 30% of the width of a
+ * portrait phone screen.
+ */
+export const CLOVER_SPLASH_FRACTION = 0.2;
+
+/**
+ * The factor that shrinks a finished mark to span `fraction` of its box, keeping the proportions
+ * it has on an icon.
+ *
+ * Use this rather than lowering `scale` to make a small mark. `CLOVER_LEAF_OFFSET` is measured in
+ * tile units, outside the per-leaf scale, so a smaller `scale` shrinks the leaves while the cleft
+ * between them stays the same width: by scale 0.2 the gap is wider than the leaves and the mark
+ * reads as four loose hearts rather than a clover. Scaling the assembled group moves the clefts
+ * with the leaves.
+ */
+export function cloverFit(fraction: number, scale: number = CLOVER_SCALE.tile, box = 64): number {
+  return (fraction * box) / (2 * cloverReach(scale));
+}
+
+/** Wraps mark markup in a scale about the centre of the box — see `cloverFit`. */
+export function cloverScaled(fraction: number, body: string, scale: number = CLOVER_SCALE.tile, box = 64): string {
+  const c = box / 2;
+  return `<g transform="translate(${c} ${c}) scale(${cloverFit(fraction, scale, box)}) translate(${-c} ${-c})">${body}</g>`;
+}

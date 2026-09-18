@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { CLOVER_LEAF_ANGLES, CLOVER_LEAF_OFFSET, CLOVER_LUCKY_LEAF, CLOVER_SCALE, cloverLeafTransform, cloverLeaves, cloverReach } from "@/components/brand/clover";
+import {
+  CLOVER_LEAF_ANGLES,
+  CLOVER_LEAF_OFFSET,
+  CLOVER_LUCKY_LEAF,
+  CLOVER_SCALE,
+  CLOVER_SPLASH_FRACTION,
+  cloverFit,
+  cloverLeafTransform,
+  cloverLeaves,
+  cloverReach,
+  cloverScaled,
+} from "@/components/brand/clover";
 
 describe("clover geometry", () => {
   it("places four leaves on the axes", () => {
@@ -48,5 +59,28 @@ describe("clover geometry", () => {
     for (const angle of CLOVER_LEAF_ANGLES) {
       expect(cloverLeafTransform(angle, CLOVER_SCALE.tile)).toContain(`translate(0 ${-CLOVER_LEAF_OFFSET})`);
     }
+  });
+
+  it("keeps the Android adaptive icon inside the 66dp safe circle", () => {
+    // `@capacitor/assets` insets both icon layers by 16.7%, so the square this scale is drawn on
+    // lands on the central 72dp of the 108dp adaptive canvas. Android's guidance is to keep key
+    // content inside a circle of 66dp, because a launcher's mask may be no larger than that.
+    const spanOfTheImage = (2 * cloverReach(CLOVER_SCALE.adaptive)) / 64;
+    expect(spanOfTheImage * 72).toBeLessThan(66);
+    // And large enough to look like a launcher icon rather than a stamp in the middle of one.
+    expect(spanOfTheImage * 72).toBeGreaterThan(56);
+  });
+
+  it("shrinks a small mark by scaling the finished group, not the leaves", () => {
+    const k = cloverFit(CLOVER_SPLASH_FRACTION);
+    expect((k * 2 * cloverReach(CLOVER_SCALE.tile)) / 64).toBeCloseTo(CLOVER_SPLASH_FRACTION, 10);
+    expect(cloverScaled(CLOVER_SPLASH_FRACTION, "<path/>")).toContain(`scale(${k})`);
+
+    // Why it is done that way: the offset is in tile units, outside the per-leaf scale. Reaching
+    // the same width by lowering the leaf scale would leave a cleft most of a leaf wide, and the
+    // mark would read as four loose hearts rather than a clover.
+    const leafScale = (CLOVER_SPLASH_FRACTION * 32 - CLOVER_LEAF_OFFSET) / 19;
+    expect(CLOVER_LEAF_OFFSET / (19 * leafScale)).toBeGreaterThan(0.8);
+    expect(CLOVER_LEAF_OFFSET / (19 * CLOVER_SCALE.tile)).toBeLessThan(0.13);
   });
 });
