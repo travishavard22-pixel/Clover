@@ -5,6 +5,8 @@ import { enqueueJob } from "../jobs/queue";
 import { MARKETPLACES } from "../marketplaces/registry";
 import { formatMoney } from "../money";
 import { notify } from "../notifications";
+import { getOwnedOffer, respondToOffer } from "../offers";
+import { startPublications } from "../marketplaces/publications";
 import type { ProposalAction, ProposalPayload } from "./types";
 
 export type ApplyMeta = { source: "user" | "auto"; ip?: string | null; userAgent?: string | null };
@@ -42,6 +44,10 @@ export async function executeProposal(userId: string, proposal: ProposalPayload,
       return applyFixTitle(userId, proposal, meta);
     case "set_shipping_note":
       return applyShippingNote(userId, proposal, meta);
+    case "respond_offer":
+      return applyRespondOffer(userId, proposal, meta);
+    case "publish":
+      return applyPublish(userId, proposal, meta);
     case "notify":
       return { action: "notify", summary: "Noted.", manual: [], jobIds: [] };
     case "review":
@@ -161,6 +167,106 @@ async function applyShippingNote(userId: string, p: Extract<ProposalPayload, { a
   await db.item.update({ where: { id: item.id }, data: { attributes: attributes as Prisma.InputJsonValue } });
   await audit({ userId, action: "item.shipping_note", entityType: "item", entityId: item.id, meta: { source: meta.source, checklist: p.checklist.length }, ip: meta.ip, userAgent: meta.userAgent });
   return { action: "set_shipping_note", summary: `Packing note saved to ${item.title}.`, manual: [], jobIds: [] };
+}
+
+/**
+ * Lists an item on the marketplaces the proposal named.
+ *
+ * Each marketplace is started on its own rather than in one call, because a batch that aborts on
+ * the first refusal ("connect eBay first") would silently skip the three that were fine. What
+ * succeeded and what did not are both reported; a marketplace that refused for a reason the seller
+ * can fix is named with that reason rather than swallowed.
+ */
+async function applyPublish(userId: string, p: Extract<ProposalPayload, { action: "publish" }>, meta: ApplyMeta): Promise<ApplyResult> {
+  const item = await ownedItem(userId, p.itemId);
+  if (item.status !== "READY") throw new ApiError(409, `This item is ${item.status.toLowerCase().replace(/_/g, " ")}, so it is not waiting to be listed.`, "stale_proposal");
+  if (item.listPrice !== p.priceCents) {
+    throw new ApiError(409, `The price changed to ${formatMoney(item.listPrice)} since this was suggested. Run the automations again for a fresh suggestion.`, "stale_proposal");
+  }
+
+  const jobIds: string[] = [];
+  const manual: Marketplace[] = [];
+  const started: Marketplace[] = [];
+  const refused: Array<{ marketplace: Marketplace; message: string }> = [];
+  for (const marketplace of p.marketplaces) {
+    try {
+      const [result] = await startPublications(userId, item.id, [marketplace], { ip: meta.ip, userAgent: meta.userAgent });
+      if (!result) continue;
+      started.push(marketplace);
+      if (result.jobId) jobIds.push(result.jobId);
+      else manual.push(marketplace);
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      refused.push({ marketplace, message: err.message });
+    }
+  }
+  if (!started.length) {
+    const why = refused.map((r) => r.message).join(" ") || "Nothing left to publish.";
+    throw new ApiError(409, why, refused[0]?.message ? "publish_refused" : "nothing_to_publish");
+  }
+
+  await audit({ userId, action: meta.source === "auto" ? "automation.publish" : "item.publish_applied", entityType: "item", entityId: item.id, meta: { marketplaces: started, jobIds, manual, refused, priceCents: p.priceCents, reason: p.reason }, ip: meta.ip, userAgent: meta.userAgent });
+
+  const parts: string[] = [];
+  if (jobIds.length) parts.push(`Publishing to ${jobIds.length === started.length ? listOf(started) : listOf(started.filter((m) => !manual.includes(m)))}.`);
+  if (manual.length) parts.push(`${listOf(manual)} ${manual.length > 1 ? "have" : "has"} no publish API — the checklist is ready for you.`);
+  if (refused.length) parts.push(`Skipped ${listOf(refused.map((r) => r.marketplace))}: ${refused.map((r) => r.message).join(" ")}`);
+  return { action: "publish", summary: parts.join(" "), manual, jobIds };
+}
+
+function listOf(ms: Marketplace[]): string {
+  const names = [...new Set(ms)].map((m) => MARKETPLACES[m].name);
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * Answers a buyer's offer. This is the one branch that spends the seller's money, so every number
+ * the decision was made on is re-read and re-checked here: the offer has to still be pending, the
+ * amount and asking price have to still be what the evaluator saw, and the floor is enforced again
+ * independently of whatever the rule said at the time. A stale proposal fails with a 409 rather
+ * than accepting a price the seller has since moved away from.
+ */
+async function applyRespondOffer(userId: string, p: Extract<ProposalPayload, { action: "respond_offer" }>, meta: ApplyMeta): Promise<ApplyResult> {
+  const offer = await getOwnedOffer(userId, p.offerId);
+  if (offer.itemId !== p.itemId) throw new ApiError(404, "Offer not found", "not_found");
+  if (offer.status !== "PENDING") throw new ApiError(409, `This offer was already ${offer.status.toLowerCase()}.`, "bad_status");
+  if (offer.amount !== p.offerCents) throw new ApiError(409, `The offer changed to ${formatMoney(offer.amount)} since this was suggested.`, "stale_proposal");
+  if (offer.originalPrice !== p.askCents) throw new ApiError(409, `The asking price changed to ${formatMoney(offer.originalPrice)} since this was suggested. Run the automations again.`, "stale_proposal");
+
+  const floor = offer.item.floorPrice;
+  if (floor !== null && p.response === "accept" && offer.amount < floor) {
+    throw new ApiError(409, `Refusing to accept ${formatMoney(offer.amount)} — it is below your floor price of ${formatMoney(floor)}.`, "below_floor");
+  }
+  if (p.response === "counter") {
+    if (p.counterCents === null) throw new ApiError(400, "This counter has no amount.", "validation");
+    if (floor !== null && p.counterCents < floor) throw new ApiError(409, `Refusing to counter below your floor price of ${formatMoney(floor)}.`, "below_floor");
+  }
+
+  const res = await respondToOffer(userId, offer.id, { action: p.response, counterCents: p.response === "counter" ? p.counterCents! : undefined }, { ip: meta.ip, userAgent: meta.userAgent });
+  // An assisted listing has no API to reply through: respondToOffer recorded the outcome, but the
+  // seller still has to send the reply on the marketplace. Say so rather than implying it is done.
+  const manual: Marketplace[] = res.repliedVia === "manual" ? [offer.marketplace] : [];
+  await audit({
+    userId,
+    action: meta.source === "auto" ? "automation.respond_offer" : "offer.respond_applied",
+    entityType: "offer",
+    entityId: offer.id,
+    meta: { itemId: offer.itemId, response: p.response, offerCents: p.offerCents, counterCents: p.counterCents, askCents: p.askCents, repliedVia: res.repliedVia, reason: p.reason },
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+  });
+
+  const name = MARKETPLACES[offer.marketplace].name;
+  const what =
+    p.response === "accept"
+      ? `Accepted ${formatMoney(offer.amount)} from ${offer.buyerName}.`
+      : p.response === "decline"
+        ? `Declined ${offer.buyerName}'s ${formatMoney(offer.amount)} offer.`
+        : `Countered ${offer.buyerName} at ${formatMoney(p.counterCents!)}.`;
+  const how = res.repliedVia === "api" ? ` Sent on ${name}.` : ` Send this on ${name} yourself — Clover has recorded it here.`;
+  const guardNote = res.guarded.length ? ` Ending ${res.guarded.length} other listing${res.guarded.length > 1 ? "s" : ""} so nobody else buys it.` : "";
+  return { action: "respond_offer", summary: `${what}${how}${guardNote}`, manual, jobIds: [] };
 }
 
 /** Applies a stored recommendation and marks it APPLIED. */

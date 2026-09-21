@@ -58,3 +58,18 @@ export function proposalKeyOf(proposal: unknown): string | null {
   if (proposal && typeof proposal === "object" && typeof (proposal as { key?: unknown }).key === "string") return (proposal as { key: string }).key;
   return null;
 }
+
+/**
+ * The offer a recommendation is about, read back out of its proposal key.
+ *
+ * Offer-scoped recommendations outlive their offer: the buyer's offer can be answered on the
+ * marketplace, withdrawn, or simply expire, and nothing in Clover would have noticed. Matching on
+ * the key rather than storing an `offerId` column keeps this to a read — the key is already the
+ * thing de-duplication is built on.
+ */
+const OFFER_KEY = /^(?:offer|autopilot):([^:]+)/;
+
+export function offerIdOfKey(key: string | null): string | null {
+  if (!key) return null;
+  return OFFER_KEY.exec(key)?.[1] ?? null;
+}

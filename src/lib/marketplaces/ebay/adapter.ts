@@ -7,6 +7,7 @@ import { findSpecific, mergeSpecifics, parseSpecifics, renderListing } from "../
 import { selectListingPhotos } from "../photos";
 import { loadSellerPrefs, locationOf } from "../prefs";
 import { toRenderDraft, toRenderItem } from "../drafts";
+import { bestOfferTermsForSeller } from "../../automations/offer-terms";
 import type { ConnectionCapabilities, MarketplaceAdapter, PreparedPublication, PublishResult, SyncedOffer, SyncedOrder } from "../types";
 import { flatRunner, type PhasedAdapter, type PublishInput, type StepRunner } from "../phased";
 import { CLOVER_LOCATION_KEY, createInventoryLocation, getOptedInPrograms, getOrCreateDefaultPolicies, optInToProgram, type EbayPolicies } from "./account";
@@ -236,6 +237,7 @@ export class EbayAdapter implements PhasedAdapter {
       const grade = item.conditionGrade;
       const conditionEnum = EBAY_CONDITION_ENUM[grade];
       const conditionDescription = grade === "NEW_SEALED" ? undefined : [draft.conditionText, item.conditionNotes].filter(Boolean).join(" ").trim() || undefined;
+      const bestOffer = await bestOfferTermsForSeller(item.userId, { priceCents: prepared.priceCents, floorPrice: item.floorPrice, conditionGrade: grade });
       const offer = await run("fees", "Previewing fees", async (report) => {
         await createOrReplaceInventoryItem(conn, {
           sku: item.sku,
@@ -256,7 +258,9 @@ export class EbayAdapter implements PhasedAdapter {
           listingDescription: prepared.description.replace(/\n/g, "<br>"),
           merchantLocationKey: locationKey,
           policies,
-          bestOffer: { enabled: grade !== "NEW_SEALED", autoDeclineCents: item.floorPrice ? Math.round(item.floorPrice * 0.9) : null },
+          // The seller's offer-autopilot rule rides along onto the listing itself, so eBay answers
+          // offers in seconds rather than waiting for Clover's next sweep. See offer-terms.ts.
+          bestOffer,
           quantity: Math.max(1, item.quantity),
         };
         const existing = await getOfferBySku(conn, item.sku);
@@ -299,6 +303,10 @@ export class EbayAdapter implements PhasedAdapter {
     const meta = (publication.externalMeta ?? {}) as { offerId?: string; sku?: string };
     if (!meta.offerId) return { status: "FAILED", error: "This eBay publication has no offer id to update.", retryable: false };
     try {
+      // bulk_update_price_quantity only moves the price; eBay's Best Offer terms are part of the
+      // offer itself and are refreshed on republish. A stale auto-accept price was computed from a
+      // higher ask, so it can only make eBay *more* reluctant to accept — and Clover's own sweep
+      // still answers anything eBay leaves pending, by the same rule.
       await updatePrice(connection, meta.sku ?? item.sku, meta.offerId, input.priceCents);
       return { status: "PUBLISHED", externalId: publication.externalId ?? "", externalUrl: publication.externalUrl, externalMeta: { ...meta, lastPriceUpdateAt: new Date().toISOString() } };
     } catch (err) {

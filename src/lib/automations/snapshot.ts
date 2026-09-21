@@ -1,6 +1,8 @@
 import { db } from "../db";
-import type { EvaluationContext, SnapshotItem, SnapshotPreferences, SnapshotProfile } from "./types";
-import type { AutomationMode, AutomationType } from "../db";
+import { selfCheckOfDraft } from "../listings/store";
+import { MARKETPLACES } from "../marketplaces/registry";
+import type { EvaluationContext, SnapshotConnection, SnapshotItem, SnapshotPreferences, SnapshotProfile } from "./types";
+import type { AutomationMode, AutomationType, Marketplace } from "../db";
 
 type ProfileData = { itemName?: { value?: unknown } | null; brand?: { value?: unknown } | null; model?: { value?: unknown } | null; dimensions?: { value?: unknown } | null; material?: { value?: unknown } | null };
 
@@ -8,11 +10,12 @@ function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v : null;
 }
 
-export function profileFromData(data: unknown): SnapshotProfile | null {
+export function profileFromData(data: unknown, identityConfidence: number | null = null): SnapshotProfile | null {
   if (!data || typeof data !== "object") return null;
   const d = data as ProfileData;
   return {
     itemName: str(d.itemName?.value),
+    identityConfidence,
     brand: str(d.brand?.value),
     model: str(d.model?.value),
     dimensions: str(d.dimensions?.value),
@@ -22,6 +25,9 @@ export function profileFromData(data: unknown): SnapshotProfile | null {
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
+/** Mirrors the schema default for UserPreferences.defaultMarketplaces. */
+const DEFAULT_MARKETPLACES = ["EBAY", "FACEBOOK", "OFFERUP", "NEXTDOOR"];
+
 /** Loads everything the evaluators need for one seller. Archived items are left out. */
 export async function loadSnapshotItems(userId: string): Promise<SnapshotItem[]> {
   const rows = await db.item.findMany({
@@ -29,11 +35,16 @@ export async function loadSnapshotItems(userId: string): Promise<SnapshotItem[]>
     orderBy: { updatedAt: "desc" },
     include: {
       photos: { select: { id: true, kind: true, width: true, height: true, sortOrder: true, aiGenerated: true, studioMode: true }, orderBy: { sortOrder: "asc" } },
-      profile: { select: { data: true } },
+      profile: { select: { data: true, identityConfidence: true } },
       estimate: { select: { quickSale: true, recommended: true, maxValue: true, confidence: true, basis: true } },
-      drafts: { select: { id: true, marketplace: true, title: true, updatedAt: true } },
+      drafts: { select: { id: true, marketplace: true, title: true, selfCheck: true, updatedAt: true } },
       publications: { select: { id: true, marketplace: true, mode: true, status: true, price: true, externalUrl: true, attention: true, publishedAt: true, updatedAt: true } },
-      offers: { select: { id: true, marketplace: true, buyerName: true, amount: true, originalPrice: true, status: true, receivedAt: true, expiresAt: true, message: true }, orderBy: { receivedAt: "desc" } },
+      offers: {
+        // The publication's mode rides along because only an API listing can be answered by
+        // Clover; on an assisted one the seller has to reply on the marketplace themselves.
+        select: { id: true, marketplace: true, buyerName: true, amount: true, originalPrice: true, status: true, receivedAt: true, expiresAt: true, message: true, publication: { select: { mode: true } } },
+        orderBy: { receivedAt: "desc" },
+      },
     },
   });
   return rows.map((i) => ({
@@ -58,9 +69,9 @@ export async function loadSnapshotItems(userId: string): Promise<SnapshotItem[]>
     createdAt: i.createdAt.toISOString(),
     updatedAt: i.updatedAt.toISOString(),
     photos: i.photos,
-    profile: profileFromData(i.profile?.data),
+    profile: profileFromData(i.profile?.data, i.profile?.identityConfidence ?? null),
     estimate: i.estimate,
-    drafts: i.drafts.map((d) => ({ id: d.id, marketplace: d.marketplace, title: d.title, updatedAt: d.updatedAt.toISOString() })),
+    drafts: i.drafts.map((d) => ({ id: d.id, marketplace: d.marketplace, title: d.title, selfCheckVerdict: selfCheckOfDraft(d)?.verdict ?? null, updatedAt: d.updatedAt.toISOString() })),
     publications: i.publications.map((p) => ({
       id: p.id,
       marketplace: p.marketplace,
@@ -72,7 +83,7 @@ export async function loadSnapshotItems(userId: string): Promise<SnapshotItem[]>
       publishedAt: iso(p.publishedAt),
       updatedAt: p.updatedAt.toISOString(),
     })),
-    offers: i.offers.map((o) => ({ ...o, receivedAt: o.receivedAt.toISOString(), expiresAt: iso(o.expiresAt) })),
+    offers: i.offers.map(({ publication, ...o }) => ({ ...o, publicationMode: publication?.mode ?? null, receivedAt: o.receivedAt.toISOString(), expiresAt: iso(o.expiresAt) })),
   }));
 }
 
@@ -85,11 +96,19 @@ export async function loadSnapshotPreferences(userId: string): Promise<SnapshotP
     notifyOffers: p?.notifyOffers ?? true,
     notifyStale: p?.notifyStale ?? true,
     notifyPublishing: p?.notifyPublishing ?? true,
+    // Stored as free strings, so anything no longer in the registry is dropped rather than trusted.
+    defaultMarketplaces: (p?.defaultMarketplaces ?? DEFAULT_MARKETPLACES).filter((m): m is Marketplace => m in MARKETPLACES),
     city: p?.city ?? null,
   };
 }
 
+/** The seller's marketplace connections, so evaluators know where Clover can actually act. */
+export async function loadSnapshotConnections(userId: string): Promise<SnapshotConnection[]> {
+  const rows = await db.marketplaceConnection.findMany({ where: { userId }, select: { marketplace: true, status: true, mode: true, lastError: true, refreshTokenExpiresAt: true, updatedAt: true } });
+  return rows.map((r) => ({ marketplace: r.marketplace, status: r.status, mode: r.mode, lastError: r.lastError, refreshTokenExpiresAt: iso(r.refreshTokenExpiresAt), updatedAt: r.updatedAt.toISOString() }));
+}
+
 export async function buildEvaluationContext(userId: string, modes: Record<AutomationType, AutomationMode>, now = new Date()): Promise<EvaluationContext> {
-  const [items, preferences] = await Promise.all([loadSnapshotItems(userId), loadSnapshotPreferences(userId)]);
-  return { now, items, preferences, modes };
+  const [items, preferences, connections] = await Promise.all([loadSnapshotItems(userId), loadSnapshotPreferences(userId), loadSnapshotConnections(userId)]);
+  return { now, items, preferences, connections, modes };
 }

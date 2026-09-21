@@ -112,8 +112,12 @@ Full schema: `prisma/schema.prisma`. Key entities:
 - **Offer** — aggregated buyer offers (eBay Best Offers via API; manual entry for assisted
   channels): amounts, buyer, message, status, suggested response JSON, counter history.
 - **AutomationRule** — type (`REPRICE_STALE`, `STALE_LISTING`, `PHOTO_QUALITY`, `TITLE_QUALITY`,
-  `OFFER_ALERT`, `SOLD_SYNC`, `DOUBLE_SELL_GUARD`, `SHIPPING_PREP`, `PENDING_ACTION_REMINDER`),
-  mode `OFF | SUGGEST | ASK | AUTO`, config JSON.
+  `OFFER_ALERT`, `OFFER_AUTOPILOT`, `AUTO_PUBLISH`, `CONNECTION_HEALTH`, `SOLD_SYNC`,
+  `DOUBLE_SELL_GUARD`, `SHIPPING_PREP`, `PENDING_ACTION_REMINDER`), mode
+  `OFF | SUGGEST | ASK | AUTO`, config JSON.
+  The two that act on the seller's behalf — `OFFER_AUTOPILOT` answers offers, `AUTO_PUBLISH` puts
+  listings live — default to `SUGGEST` and enforce their thresholds again at apply time, so a
+  proposal built from a stale snapshot fails with a 409 instead of transacting.
 - **Recommendation** — automation outputs shown in "Needs attention": type, title, body,
   proposed change, status (`OPEN, APPLIED, DISMISSED, SNOOZED`).
 - **Notification**, **AuditLog**, **CopilotThread / CopilotMessage**, **ApiQuota** (per-provider

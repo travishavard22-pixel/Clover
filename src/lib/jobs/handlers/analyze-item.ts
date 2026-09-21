@@ -5,6 +5,7 @@ import { mergeUserVerified, parseStoredProfile } from "../../ai/profile-edit";
 import type { ItemProfile } from "../../ai/schemas";
 import { loadVisionPhotos } from "../../ai/vision-input";
 import { ANALYZE_STEPS, STUDIO_STEPS } from "../../analysis/steps";
+import { enqueueAutomationsAfterAnalysis } from "../../automations";
 import { audit } from "../../audit";
 import { db, Prisma, type Item, type Photo } from "../../db";
 import { capabilities, env } from "../../env";
@@ -181,6 +182,11 @@ async function runPipeline(ctx: JobContext<AnalyzePayload>, item: Item, userId: 
     await db.item.update({ where: { id: item.id }, data: { status: "READY" } });
     const price = formatMoney(priced.result.recommended, "USD", { compact: true });
     await notify(userId, { type: "item.ready", title: "Ready for review", body: `${profile.itemName.value} — estimated ${price}. Review the identification, price and listing.`, href: `/items/${item.id}` });
+    // Auto-publish, if the seller turned it on, should see this item in a minute rather than at
+    // the next scheduled sweep. Off by default, and it proposes rather than publishes until the
+    // seller says otherwise.
+    const sweep = await enqueueAutomationsAfterAnalysis(userId);
+    if (sweep) await ctx.log("Queued an automation check for this item");
     await audit({ userId, action: "item.analyzed", entityType: "item", entityId: item.id, meta: { jobId: ctx.job.id, provider: ai.name, model: identified.model, identityConfidence: profile.identityConfidence, basis: priced.result.basis, recommended: priced.result.recommended, comps: compsResult.comps.length, drafts: drafts.derived.length + 1 } });
     await report("Ready for review");
   });
