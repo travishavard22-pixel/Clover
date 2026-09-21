@@ -56,10 +56,10 @@ Setting it up by hand instead:
    each other is a real failure — the loser deletes items the winner is still attaching photos to.
    (The seed takes a Postgres advisory lock, so the race is now survivable rather than corrupting,
    but the worker still should not be seeding or serving HTTP.)
-4. Optional: a third service from the same repo named `automations`, with start command
-   `pnpm exec tsx -e "import('./src/lib/automations').then((m) => m.enqueueAutomationsForAllUsers()).then(() => process.exit(0))"`,
-   a **cron schedule** of `0 9 * * *` and restart policy `NEVER`. It enqueues the nightly
-   recommendations and exits.
+4. No third service and no cron: the worker schedules marketplace syncs and automation sweeps
+   itself (`docs/runbooks/deployment.md` → Scheduled work). Tune the intervals with
+   `CLOVER_SYNC_MINUTES` and `CLOVER_SWEEP_MINUTES` if the defaults of 15 and 60 minutes do not
+   suit you.
 5. On the `web` service, open **Settings → Networking → Generate Domain** to get a temporary
    `*.up.railway.app` address. You will replace it with your own domain in step 5.
 

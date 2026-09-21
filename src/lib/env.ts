@@ -30,6 +30,12 @@ const schema = z.object({
   CLOVER_ENCRYPTION_KEYS: z.string().min(1),
   CLOVER_DEMO_MODE: boolish,
 
+  // How often the worker's heartbeat pulls marketplaces and sweeps automations, in minutes.
+  // Offers expire, so the sync is the tighter of the two. Both are clamped to sane bounds: a
+  // one-minute sync would burn API quota, and a daily one is not an inbox.
+  CLOVER_SYNC_MINUTES: z.coerce.number().int().min(5).max(1440).default(15),
+  CLOVER_SWEEP_MINUTES: z.coerce.number().int().min(5).max(1440).default(60),
+
   ANTHROPIC_API_KEY: z.string().optional(),
   // Only needed for an organization-level key. Keys created inside a workspace carry their own
   // scope; an unscoped one is rejected with a 400 until the request names a workspace.

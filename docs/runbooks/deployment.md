@@ -25,12 +25,23 @@ platform.
 4. Verify `GET /api/health` returns `status: ok` and the `capabilities` you expect.
 5. Optional: `pnpm db:seed` creates the demo account (`demo@clover.local`).
 
-## Scheduled automations
+## Scheduled work
 
-Run `RUN_AUTOMATIONS` nightly by enqueuing a job from cron, e.g.
-`pnpm exec tsx -e "import('./src/lib/automations').then(m => m.enqueueAutomationsForAllUsers())"`.
-Marketplace sync for API connections is enqueued on demand and after publishing; add an hourly cron
-the same way with `SYNC_MARKETPLACE` if you want passive polling.
+The worker runs its own heartbeat — **no cron to set up**. Once a minute it asks the job table
+whether anything is due and enqueues it:
+
+| Work | Default | Variable |
+|---|---|---|
+| `SYNC_MARKETPLACE` per connected seller — pulls new offers and orders | every 15 min | `CLOVER_SYNC_MINUTES` |
+| `RUN_AUTOMATIONS` across every seller — evaluates rules, executes the AUTO ones | every 60 min | `CLOVER_SWEEP_MINUTES` |
+
+Both are clamped to 5–1440 minutes. Run as many workers as you like: the due check takes a Postgres
+advisory lock, so exactly one of them enqueues, and work that is still queued or running is never
+stacked on.
+
+This is what makes an unattended deployment actually unattended. Before it, both jobs were enqueued
+only by a button in the app or by a cron the deployment may never have configured — a server that
+looked healthy while no offer ever arrived on its own.
 
 ## Key rotation
 
