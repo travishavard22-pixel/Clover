@@ -4,6 +4,7 @@ import { notify } from "../notifications";
 import { executeProposal } from "./apply";
 import { dedupeProposals, offerIdOfKey, proposalKeyOf, type ExistingRecommendation } from "./dedupe";
 import { evaluate } from "./evaluators";
+import { connectionIssues } from "./evaluators/connection-health";
 import { AUTOMATIONS } from "./registry";
 import { getRulesForUser, modesOf } from "./rules";
 import { buildEvaluationContext } from "./snapshot";
@@ -149,6 +150,22 @@ export async function runAutomationsForUser(userId: string, opts: { now?: Date; 
   if (staleOffers.length) {
     const closed = await db.recommendation.updateMany({ where: { userId, id: { in: staleOffers.map((r) => r.id) }, status: { in: ["OPEN", "SNOOZED"] } }, data: { status: "DISMISSED", resolvedAt: now } });
     summary.resolved += closed.count;
+  }
+
+  // 7c. A connection recommendation outlives its problem: reconnecting fixes it without telling
+  // anyone, and a standing "Reconnect eBay" card next to a working eBay is worse than none.
+  const connectionRule = rules.find((r) => r.type === "CONNECTION_HEALTH");
+  if (connectionRule && connectionRule.mode !== "OFF") {
+    const live = new Set(connectionIssues(ctx.connections, now, connectionRule.config as AutomationConfigMap["CONNECTION_HEALTH"]).map((i) => `${i.marketplace}:${i.code}`));
+    const fixed = existing.filter((r) => {
+      if (r.type !== "CONNECTION_HEALTH" || (r.status !== "OPEN" && r.status !== "SNOOZED")) return false;
+      const parts = (r.key ?? "").split(":");
+      return parts.length >= 3 && !live.has(`${parts[1]}:${parts[2]}`);
+    });
+    if (fixed.length) {
+      const closed = await db.recommendation.updateMany({ where: { userId, id: { in: fixed.map((r) => r.id) }, status: { in: ["OPEN", "SNOOZED"] } }, data: { status: "DISMISSED", resolvedAt: now } });
+      summary.resolved += closed.count;
+    }
   }
 
   await audit({ userId, action: "automation.run", meta: { proposals: summary.proposals, created: summary.created, autoApplied: summary.autoApplied, duplicates: summary.duplicates, resolved: summary.resolved } });

@@ -56,6 +56,11 @@ switched to AUTO deliberately. Both enforce their own limits a second time at ap
 fresh rows rather than trusting the proposal — an offer that changed, a price that moved or an item
 that already sold fails with a 409 instead of transacting on stale numbers.
 
+**Connection health** is the counterweight to both. A marketplace authorization that expires or is
+revoked stops everything without erroring anywhere the seller can see — so the sweep reports a
+broken connection, and reports an approaching expiry before it happens rather than after. It has no
+AUTO mode: reconnecting means signing in on the marketplace, which only the seller can do.
+
 Neither one can act where Clover has no API. On an assisted marketplace the reply or the listing is
 prepared and handed to the seller as a checklist, and the UI says so rather than implying it went
 out.

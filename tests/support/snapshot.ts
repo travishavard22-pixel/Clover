@@ -66,8 +66,12 @@ export function snapshotOffer(over: Partial<SnapshotOffer> = {}): SnapshotOffer 
   };
 }
 
+export function connection(over: Partial<SnapshotConnection> = {}): SnapshotConnection {
+  return { marketplace: "EBAY", status: "CONNECTED", mode: "api", lastError: null, refreshTokenExpiresAt: null, updatedAt: "2026-09-01T00:00:00.000Z", ...over };
+}
+
 export function evaluationContext(items: SnapshotItem[], over: Partial<EvaluationContext> = {}): EvaluationContext {
   const modes = Object.fromEntries(AUTOMATION_TYPES.map((t) => [t, "AUTO"])) as Record<AutomationType, AutomationMode>;
-  const connections: SnapshotConnection[] = [{ marketplace: "EBAY", status: "CONNECTED", mode: "api" }];
+  const connections: SnapshotConnection[] = [connection()];
   return { now: new Date("2026-09-21T00:00:00.000Z"), items, preferences: PREFERENCES, connections, modes, ...over };
 }

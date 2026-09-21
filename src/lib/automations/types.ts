@@ -104,6 +104,10 @@ export type SnapshotConnection = {
   status: string;
   /** "api", "assisted" or "demo" — what Clover can actually do on this marketplace. */
   mode: string;
+  lastError: string | null;
+  /** When the seller will have to sign in again. Null when the marketplace never expires one. */
+  refreshTokenExpiresAt: string | null;
+  updatedAt: string;
 };
 
 export type SnapshotPreferences = {
@@ -189,6 +193,7 @@ export type AutoPublishConfig = {
   requireSelfCheckPass: boolean;
   requireFloorPrice: boolean;
 };
+export type ConnectionHealthConfig = { warnBeforeExpiryDays: number };
 export type SoldSyncConfig = { includeAssisted: boolean };
 export type DoubleSellGuardConfig = { graceHours: number };
 export type ShippingPrepConfig = { includeDimensions: boolean };
@@ -202,6 +207,7 @@ export type AutomationConfigMap = {
   OFFER_ALERT: OfferAlertConfig;
   OFFER_AUTOPILOT: OfferAutopilotConfig;
   AUTO_PUBLISH: AutoPublishConfig;
+  CONNECTION_HEALTH: ConnectionHealthConfig;
   SOLD_SYNC: SoldSyncConfig;
   DOUBLE_SELL_GUARD: DoubleSellGuardConfig;
   SHIPPING_PREP: ShippingPrepConfig;
@@ -244,6 +250,7 @@ export const AUTOMATION_TYPES: AutomationType[] = [
   "OFFER_ALERT",
   "OFFER_AUTOPILOT",
   "AUTO_PUBLISH",
+  "CONNECTION_HEALTH",
   "SOLD_SYNC",
   "DOUBLE_SELL_GUARD",
   "SHIPPING_PREP",

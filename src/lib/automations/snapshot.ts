@@ -104,8 +104,8 @@ export async function loadSnapshotPreferences(userId: string): Promise<SnapshotP
 
 /** The seller's marketplace connections, so evaluators know where Clover can actually act. */
 export async function loadSnapshotConnections(userId: string): Promise<SnapshotConnection[]> {
-  const rows = await db.marketplaceConnection.findMany({ where: { userId }, select: { marketplace: true, status: true, mode: true } });
-  return rows.map((r) => ({ marketplace: r.marketplace, status: r.status, mode: r.mode }));
+  const rows = await db.marketplaceConnection.findMany({ where: { userId }, select: { marketplace: true, status: true, mode: true, lastError: true, refreshTokenExpiresAt: true, updatedAt: true } });
+  return rows.map((r) => ({ marketplace: r.marketplace, status: r.status, mode: r.mode, lastError: r.lastError, refreshTokenExpiresAt: iso(r.refreshTokenExpiresAt), updatedAt: r.updatedAt.toISOString() }));
 }
 
 export async function buildEvaluationContext(userId: string, modes: Record<AutomationType, AutomationMode>, now = new Date()): Promise<EvaluationContext> {

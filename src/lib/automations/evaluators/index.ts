@@ -1,6 +1,7 @@
 import type { AutomationType } from "../../db";
 import type { AutomationConfigMap, EvaluationContext, Evaluator, Proposal } from "../types";
 import { evaluateAutoPublish } from "./auto-publish";
+import { evaluateConnectionHealth } from "./connection-health";
 import { evaluateDoubleSellGuard } from "./double-sell-guard";
 import { evaluateOfferAlert } from "./offer-alert";
 import { evaluateOfferAutopilot } from "./offer-autopilot";
@@ -20,6 +21,7 @@ export const EVALUATORS: { [T in AutomationType]: Evaluator<T> } = {
   OFFER_ALERT: evaluateOfferAlert,
   OFFER_AUTOPILOT: evaluateOfferAutopilot,
   AUTO_PUBLISH: evaluateAutoPublish,
+  CONNECTION_HEALTH: evaluateConnectionHealth,
   SOLD_SYNC: evaluateSoldSync,
   DOUBLE_SELL_GUARD: evaluateDoubleSellGuard,
   SHIPPING_PREP: evaluateShippingPrep,
@@ -37,3 +39,4 @@ export { analyseTitle, titleLimitFor } from "./title-quality";
 export { buildShippingNote } from "./shipping-prep";
 export { orphanedPublications } from "./sold-sync";
 export { publishReadiness, publishableMarketplaces } from "./auto-publish";
+export { connectionIssues } from "./connection-health";

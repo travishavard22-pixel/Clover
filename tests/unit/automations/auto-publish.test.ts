@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { evaluateAutoPublish, publishReadiness, publishableMarketplaces } from "@/lib/automations/evaluators/auto-publish";
 import { AUTOMATIONS } from "@/lib/automations/registry";
 import type { AutoPublishConfig, EvaluationContext, SnapshotItem } from "@/lib/automations/types";
-import { evaluationContext, snapshotItem } from "../../support/snapshot";
+import { connection, evaluationContext, snapshotItem } from "../../support/snapshot";
 
 const RULE = AUTOMATIONS.AUTO_PUBLISH.defaultConfig as AutoPublishConfig;
 const config = (over: Partial<AutoPublishConfig> = {}): AutoPublishConfig => ({ ...RULE, ...over });
@@ -80,7 +80,7 @@ describe("publishableMarketplaces", () => {
   });
 
   it("skips an API marketplace whose connection is broken", () => {
-    const ctx = evaluationContext([ready()], { connections: [{ marketplace: "EBAY", status: "NEEDS_RECONNECT", mode: "api" }] });
+    const ctx = evaluationContext([ready()], { connections: [connection({ status: "NEEDS_REAUTH" })] });
     expect(publishableMarketplaces(ctx, ready())).toEqual(["FACEBOOK"]);
   });
 
