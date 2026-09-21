@@ -45,6 +45,8 @@ export type SnapshotPublication = {
 export type SnapshotOffer = {
   id: string;
   marketplace: Marketplace;
+  /** How the listing was published. Clover can only answer offers on an API publication. */
+  publicationMode: PublicationMode | null;
   buyerName: string;
   amount: number;
   originalPrice: number;
@@ -118,6 +120,7 @@ export type ProposalAction =
   | { action: "end_listings"; itemId: string; publicationIds: string[]; keepMarketplace: Marketplace | null; reason: "sold_elsewhere" | "withdrawn" }
   | { action: "fix_title"; itemId: string; draftId: string | null; marketplace: Marketplace | null; fromTitle: string; toTitle: string; issues: string[] }
   | { action: "set_shipping_note"; itemId: string; note: string; checklist: string[] }
+  | { action: "respond_offer"; itemId: string; offerId: string; response: "accept" | "decline" | "counter"; counterCents: number | null; offerCents: number; askCents: number; reason: string }
   | { action: "notify"; itemId: string | null; href: string }
   | { action: "review"; itemId: string; href: string; checklist: string[] };
 
@@ -147,6 +150,17 @@ export type StaleListingConfig = { days: number };
 export type PhotoQualityConfig = { minPhotos: number; minEdgePx: number; requireStudioCover: boolean };
 export type TitleQualityConfig = { requireBrand: boolean; requireModel: boolean; flagAllCaps: boolean; flagFiller: boolean };
 export type OfferAlertConfig = { onlyAboveFloor: boolean };
+/**
+ * Offer autopilot. Percentages are of the asking price; the floor price is an absolute stop that
+ * overrides them, and `maxAutoAcceptCents` is the ceiling above which an offer is always left for
+ * a person — a guard against a mistyped price rather than against a buyer.
+ */
+export type OfferAutopilotConfig = {
+  acceptAtOrAbovePercent: number;
+  counterPercent: number;
+  declineBelowFloor: boolean;
+  maxAutoAcceptCents: number;
+};
 export type SoldSyncConfig = { includeAssisted: boolean };
 export type DoubleSellGuardConfig = { graceHours: number };
 export type ShippingPrepConfig = { includeDimensions: boolean };
@@ -158,6 +172,7 @@ export type AutomationConfigMap = {
   PHOTO_QUALITY: PhotoQualityConfig;
   TITLE_QUALITY: TitleQualityConfig;
   OFFER_ALERT: OfferAlertConfig;
+  OFFER_AUTOPILOT: OfferAutopilotConfig;
   SOLD_SYNC: SoldSyncConfig;
   DOUBLE_SELL_GUARD: DoubleSellGuardConfig;
   SHIPPING_PREP: ShippingPrepConfig;
@@ -198,6 +213,7 @@ export const AUTOMATION_TYPES: AutomationType[] = [
   "PHOTO_QUALITY",
   "TITLE_QUALITY",
   "OFFER_ALERT",
+  "OFFER_AUTOPILOT",
   "SOLD_SYNC",
   "DOUBLE_SELL_GUARD",
   "SHIPPING_PREP",

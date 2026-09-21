@@ -33,7 +33,12 @@ export async function loadSnapshotItems(userId: string): Promise<SnapshotItem[]>
       estimate: { select: { quickSale: true, recommended: true, maxValue: true, confidence: true, basis: true } },
       drafts: { select: { id: true, marketplace: true, title: true, updatedAt: true } },
       publications: { select: { id: true, marketplace: true, mode: true, status: true, price: true, externalUrl: true, attention: true, publishedAt: true, updatedAt: true } },
-      offers: { select: { id: true, marketplace: true, buyerName: true, amount: true, originalPrice: true, status: true, receivedAt: true, expiresAt: true, message: true }, orderBy: { receivedAt: "desc" } },
+      offers: {
+        // The publication's mode rides along because only an API listing can be answered by
+        // Clover; on an assisted one the seller has to reply on the marketplace themselves.
+        select: { id: true, marketplace: true, buyerName: true, amount: true, originalPrice: true, status: true, receivedAt: true, expiresAt: true, message: true, publication: { select: { mode: true } } },
+        orderBy: { receivedAt: "desc" },
+      },
     },
   });
   return rows.map((i) => ({
@@ -72,7 +77,7 @@ export async function loadSnapshotItems(userId: string): Promise<SnapshotItem[]>
       publishedAt: iso(p.publishedAt),
       updatedAt: p.updatedAt.toISOString(),
     })),
-    offers: i.offers.map((o) => ({ ...o, receivedAt: o.receivedAt.toISOString(), expiresAt: iso(o.expiresAt) })),
+    offers: i.offers.map(({ publication, ...o }) => ({ ...o, publicationMode: publication?.mode ?? null, receivedAt: o.receivedAt.toISOString(), expiresAt: iso(o.expiresAt) })),
   }));
 }
 

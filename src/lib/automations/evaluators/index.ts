@@ -2,6 +2,7 @@ import type { AutomationType } from "../../db";
 import type { AutomationConfigMap, EvaluationContext, Evaluator, Proposal } from "../types";
 import { evaluateDoubleSellGuard } from "./double-sell-guard";
 import { evaluateOfferAlert } from "./offer-alert";
+import { evaluateOfferAutopilot } from "./offer-autopilot";
 import { evaluatePendingAction } from "./pending-action";
 import { evaluatePhotoQuality } from "./photo-quality";
 import { evaluateRepriceStale } from "./reprice-stale";
@@ -16,6 +17,7 @@ export const EVALUATORS: { [T in AutomationType]: Evaluator<T> } = {
   PHOTO_QUALITY: evaluatePhotoQuality,
   TITLE_QUALITY: evaluateTitleQuality,
   OFFER_ALERT: evaluateOfferAlert,
+  OFFER_AUTOPILOT: evaluateOfferAutopilot,
   SOLD_SYNC: evaluateSoldSync,
   DOUBLE_SELL_GUARD: evaluateDoubleSellGuard,
   SHIPPING_PREP: evaluateShippingPrep,

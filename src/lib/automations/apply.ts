@@ -5,6 +5,7 @@ import { enqueueJob } from "../jobs/queue";
 import { MARKETPLACES } from "../marketplaces/registry";
 import { formatMoney } from "../money";
 import { notify } from "../notifications";
+import { getOwnedOffer, respondToOffer } from "../offers";
 import type { ProposalAction, ProposalPayload } from "./types";
 
 export type ApplyMeta = { source: "user" | "auto"; ip?: string | null; userAgent?: string | null };
@@ -42,6 +43,8 @@ export async function executeProposal(userId: string, proposal: ProposalPayload,
       return applyFixTitle(userId, proposal, meta);
     case "set_shipping_note":
       return applyShippingNote(userId, proposal, meta);
+    case "respond_offer":
+      return applyRespondOffer(userId, proposal, meta);
     case "notify":
       return { action: "notify", summary: "Noted.", manual: [], jobIds: [] };
     case "review":
@@ -161,6 +164,55 @@ async function applyShippingNote(userId: string, p: Extract<ProposalPayload, { a
   await db.item.update({ where: { id: item.id }, data: { attributes: attributes as Prisma.InputJsonValue } });
   await audit({ userId, action: "item.shipping_note", entityType: "item", entityId: item.id, meta: { source: meta.source, checklist: p.checklist.length }, ip: meta.ip, userAgent: meta.userAgent });
   return { action: "set_shipping_note", summary: `Packing note saved to ${item.title}.`, manual: [], jobIds: [] };
+}
+
+/**
+ * Answers a buyer's offer. This is the one branch that spends the seller's money, so every number
+ * the decision was made on is re-read and re-checked here: the offer has to still be pending, the
+ * amount and asking price have to still be what the evaluator saw, and the floor is enforced again
+ * independently of whatever the rule said at the time. A stale proposal fails with a 409 rather
+ * than accepting a price the seller has since moved away from.
+ */
+async function applyRespondOffer(userId: string, p: Extract<ProposalPayload, { action: "respond_offer" }>, meta: ApplyMeta): Promise<ApplyResult> {
+  const offer = await getOwnedOffer(userId, p.offerId);
+  if (offer.itemId !== p.itemId) throw new ApiError(404, "Offer not found", "not_found");
+  if (offer.status !== "PENDING") throw new ApiError(409, `This offer was already ${offer.status.toLowerCase()}.`, "bad_status");
+  if (offer.amount !== p.offerCents) throw new ApiError(409, `The offer changed to ${formatMoney(offer.amount)} since this was suggested.`, "stale_proposal");
+  if (offer.originalPrice !== p.askCents) throw new ApiError(409, `The asking price changed to ${formatMoney(offer.originalPrice)} since this was suggested. Run the automations again.`, "stale_proposal");
+
+  const floor = offer.item.floorPrice;
+  if (floor !== null && p.response === "accept" && offer.amount < floor) {
+    throw new ApiError(409, `Refusing to accept ${formatMoney(offer.amount)} — it is below your floor price of ${formatMoney(floor)}.`, "below_floor");
+  }
+  if (p.response === "counter") {
+    if (p.counterCents === null) throw new ApiError(400, "This counter has no amount.", "validation");
+    if (floor !== null && p.counterCents < floor) throw new ApiError(409, `Refusing to counter below your floor price of ${formatMoney(floor)}.`, "below_floor");
+  }
+
+  const res = await respondToOffer(userId, offer.id, { action: p.response, counterCents: p.response === "counter" ? p.counterCents! : undefined }, { ip: meta.ip, userAgent: meta.userAgent });
+  // An assisted listing has no API to reply through: respondToOffer recorded the outcome, but the
+  // seller still has to send the reply on the marketplace. Say so rather than implying it is done.
+  const manual: Marketplace[] = res.repliedVia === "manual" ? [offer.marketplace] : [];
+  await audit({
+    userId,
+    action: meta.source === "auto" ? "automation.respond_offer" : "offer.respond_applied",
+    entityType: "offer",
+    entityId: offer.id,
+    meta: { itemId: offer.itemId, response: p.response, offerCents: p.offerCents, counterCents: p.counterCents, askCents: p.askCents, repliedVia: res.repliedVia, reason: p.reason },
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+  });
+
+  const name = MARKETPLACES[offer.marketplace].name;
+  const what =
+    p.response === "accept"
+      ? `Accepted ${formatMoney(offer.amount)} from ${offer.buyerName}.`
+      : p.response === "decline"
+        ? `Declined ${offer.buyerName}'s ${formatMoney(offer.amount)} offer.`
+        : `Countered ${offer.buyerName} at ${formatMoney(p.counterCents!)}.`;
+  const how = res.repliedVia === "api" ? ` Sent on ${name}.` : ` Send this on ${name} yourself — Clover has recorded it here.`;
+  const guardNote = res.guarded.length ? ` Ending ${res.guarded.length} other listing${res.guarded.length > 1 ? "s" : ""} so nobody else buys it.` : "";
+  return { action: "respond_offer", summary: `${what}${how}${guardNote}`, manual, jobIds: [] };
 }
 
 /** Applies a stored recommendation and marks it APPLIED. */

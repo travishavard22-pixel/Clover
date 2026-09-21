@@ -2,7 +2,7 @@ import { db, Prisma, type AutomationType } from "../db";
 import { audit } from "../audit";
 import { notify } from "../notifications";
 import { executeProposal } from "./apply";
-import { dedupeProposals, proposalKeyOf, type ExistingRecommendation } from "./dedupe";
+import { dedupeProposals, offerIdOfKey, proposalKeyOf, type ExistingRecommendation } from "./dedupe";
 import { evaluate } from "./evaluators";
 import { AUTOMATIONS } from "./registry";
 import { getRulesForUser, modesOf } from "./rules";
@@ -130,12 +130,26 @@ export async function runAutomationsForUser(userId: string, opts: { now?: Date; 
   // 7. Tidy: open recommendations about items that have since sold or been archived no longer apply.
   const doneItems = ctx.items.filter((i) => i.status === "SOLD" || i.status === "SHIPPED" || i.status === "COMPLETED").map((i) => i.id);
   const gone = await db.item.findMany({ where: { userId, status: "ARCHIVED" }, select: { id: true } });
-  const resolvable: AutomationType[] = ["REPRICE_STALE", "STALE_LISTING", "PHOTO_QUALITY", "TITLE_QUALITY", "OFFER_ALERT", "PENDING_ACTION_REMINDER"];
+  const resolvable: AutomationType[] = ["REPRICE_STALE", "STALE_LISTING", "PHOTO_QUALITY", "TITLE_QUALITY", "OFFER_ALERT", "OFFER_AUTOPILOT", "PENDING_ACTION_REMINDER"];
   const resolved = await db.recommendation.updateMany({
     where: { userId, status: { in: ["OPEN", "SNOOZED"] }, type: { in: resolvable }, itemId: { in: [...doneItems, ...gone.map((g) => g.id)] } },
     data: { status: "DISMISSED", resolvedAt: now },
   });
   summary.resolved = resolved.count;
+
+  // 7b. An offer-scoped recommendation dies with its offer. The buyer can withdraw it, the seller
+  // can answer it on the marketplace, or it can simply expire — none of which Clover would hear
+  // about, leaving a suggestion to accept money nobody is offering any more.
+  const pendingOfferIds = new Set(ctx.items.flatMap((i) => i.offers.filter((o) => o.status === "PENDING").map((o) => o.id)));
+  const staleOffers = existing.filter((r) => {
+    if (r.status !== "OPEN" && r.status !== "SNOOZED") return false;
+    const offerId = offerIdOfKey(r.key);
+    return offerId !== null && !pendingOfferIds.has(offerId);
+  });
+  if (staleOffers.length) {
+    const closed = await db.recommendation.updateMany({ where: { userId, id: { in: staleOffers.map((r) => r.id) }, status: { in: ["OPEN", "SNOOZED"] } }, data: { status: "DISMISSED", resolvedAt: now } });
+    summary.resolved += closed.count;
+  }
 
   await audit({ userId, action: "automation.run", meta: { proposals: summary.proposals, created: summary.created, autoApplied: summary.autoApplied, duplicates: summary.duplicates, resolved: summary.resolved } });
   return summary;

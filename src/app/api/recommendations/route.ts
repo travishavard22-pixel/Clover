@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { json, parseQuery, withUser } from "@/lib/api";
 import { listRecommendations } from "@/lib/automations/recommendations";
+import { AUTOMATION_TYPES } from "@/lib/automations/types";
 
 export const dynamic = "force-dynamic";
 
 const Query = z.object({
   status: z.string().optional(),
-  type: z.enum(["REPRICE_STALE", "STALE_LISTING", "PHOTO_QUALITY", "TITLE_QUALITY", "OFFER_ALERT", "SOLD_SYNC", "DOUBLE_SELL_GUARD", "SHIPPING_PREP", "PENDING_ACTION_REMINDER"]).optional(),
+  // From the registry, so a new automation is filterable the day it ships.
+  type: z.enum(AUTOMATION_TYPES).optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
 });
 const STATUSES = ["OPEN", "SNOOZED", "APPLIED", "DISMISSED"] as const;
