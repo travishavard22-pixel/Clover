@@ -130,7 +130,7 @@ export async function runAutomationsForUser(userId: string, opts: { now?: Date; 
   // 7. Tidy: open recommendations about items that have since sold or been archived no longer apply.
   const doneItems = ctx.items.filter((i) => i.status === "SOLD" || i.status === "SHIPPED" || i.status === "COMPLETED").map((i) => i.id);
   const gone = await db.item.findMany({ where: { userId, status: "ARCHIVED" }, select: { id: true } });
-  const resolvable: AutomationType[] = ["REPRICE_STALE", "STALE_LISTING", "PHOTO_QUALITY", "TITLE_QUALITY", "OFFER_ALERT", "OFFER_AUTOPILOT", "PENDING_ACTION_REMINDER"];
+  const resolvable: AutomationType[] = ["REPRICE_STALE", "STALE_LISTING", "PHOTO_QUALITY", "TITLE_QUALITY", "OFFER_ALERT", "OFFER_AUTOPILOT", "AUTO_PUBLISH", "PENDING_ACTION_REMINDER"];
   const resolved = await db.recommendation.updateMany({
     where: { userId, status: { in: ["OPEN", "SNOOZED"] }, type: { in: resolvable }, itemId: { in: [...doneItems, ...gone.map((g) => g.id)] } },
     data: { status: "DISMISSED", resolvedAt: now },

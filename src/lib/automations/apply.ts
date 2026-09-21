@@ -6,6 +6,7 @@ import { MARKETPLACES } from "../marketplaces/registry";
 import { formatMoney } from "../money";
 import { notify } from "../notifications";
 import { getOwnedOffer, respondToOffer } from "../offers";
+import { startPublications } from "../marketplaces/publications";
 import type { ProposalAction, ProposalPayload } from "./types";
 
 export type ApplyMeta = { source: "user" | "auto"; ip?: string | null; userAgent?: string | null };
@@ -45,6 +46,8 @@ export async function executeProposal(userId: string, proposal: ProposalPayload,
       return applyShippingNote(userId, proposal, meta);
     case "respond_offer":
       return applyRespondOffer(userId, proposal, meta);
+    case "publish":
+      return applyPublish(userId, proposal, meta);
     case "notify":
       return { action: "notify", summary: "Noted.", manual: [], jobIds: [] };
     case "review":
@@ -164,6 +167,57 @@ async function applyShippingNote(userId: string, p: Extract<ProposalPayload, { a
   await db.item.update({ where: { id: item.id }, data: { attributes: attributes as Prisma.InputJsonValue } });
   await audit({ userId, action: "item.shipping_note", entityType: "item", entityId: item.id, meta: { source: meta.source, checklist: p.checklist.length }, ip: meta.ip, userAgent: meta.userAgent });
   return { action: "set_shipping_note", summary: `Packing note saved to ${item.title}.`, manual: [], jobIds: [] };
+}
+
+/**
+ * Lists an item on the marketplaces the proposal named.
+ *
+ * Each marketplace is started on its own rather than in one call, because a batch that aborts on
+ * the first refusal ("connect eBay first") would silently skip the three that were fine. What
+ * succeeded and what did not are both reported; a marketplace that refused for a reason the seller
+ * can fix is named with that reason rather than swallowed.
+ */
+async function applyPublish(userId: string, p: Extract<ProposalPayload, { action: "publish" }>, meta: ApplyMeta): Promise<ApplyResult> {
+  const item = await ownedItem(userId, p.itemId);
+  if (item.status !== "READY") throw new ApiError(409, `This item is ${item.status.toLowerCase().replace(/_/g, " ")}, so it is not waiting to be listed.`, "stale_proposal");
+  if (item.listPrice !== p.priceCents) {
+    throw new ApiError(409, `The price changed to ${formatMoney(item.listPrice)} since this was suggested. Run the automations again for a fresh suggestion.`, "stale_proposal");
+  }
+
+  const jobIds: string[] = [];
+  const manual: Marketplace[] = [];
+  const started: Marketplace[] = [];
+  const refused: Array<{ marketplace: Marketplace; message: string }> = [];
+  for (const marketplace of p.marketplaces) {
+    try {
+      const [result] = await startPublications(userId, item.id, [marketplace], { ip: meta.ip, userAgent: meta.userAgent });
+      if (!result) continue;
+      started.push(marketplace);
+      if (result.jobId) jobIds.push(result.jobId);
+      else manual.push(marketplace);
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      refused.push({ marketplace, message: err.message });
+    }
+  }
+  if (!started.length) {
+    const why = refused.map((r) => r.message).join(" ") || "Nothing left to publish.";
+    throw new ApiError(409, why, refused[0]?.message ? "publish_refused" : "nothing_to_publish");
+  }
+
+  await audit({ userId, action: meta.source === "auto" ? "automation.publish" : "item.publish_applied", entityType: "item", entityId: item.id, meta: { marketplaces: started, jobIds, manual, refused, priceCents: p.priceCents, reason: p.reason }, ip: meta.ip, userAgent: meta.userAgent });
+
+  const parts: string[] = [];
+  if (jobIds.length) parts.push(`Publishing to ${jobIds.length === started.length ? listOf(started) : listOf(started.filter((m) => !manual.includes(m)))}.`);
+  if (manual.length) parts.push(`${listOf(manual)} ${manual.length > 1 ? "have" : "has"} no publish API — the checklist is ready for you.`);
+  if (refused.length) parts.push(`Skipped ${listOf(refused.map((r) => r.marketplace))}: ${refused.map((r) => r.message).join(" ")}`);
+  return { action: "publish", summary: parts.join(" "), manual, jobIds };
+}
+
+function listOf(ms: Marketplace[]): string {
+  const names = [...new Set(ms)].map((m) => MARKETPLACES[m].name);
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 /**

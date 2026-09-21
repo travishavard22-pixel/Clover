@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import { decideOffer, evaluateOfferAutopilot } from "@/lib/automations/evaluators/offer-autopilot";
 import { offerIdOfKey } from "@/lib/automations/dedupe";
 import { AUTOMATIONS } from "@/lib/automations/registry";
-import type { EvaluationContext, OfferAutopilotConfig, SnapshotItem, SnapshotOffer } from "@/lib/automations/types";
-import { AUTOMATION_TYPES } from "@/lib/automations/types";
-import type { AutomationMode, AutomationType } from "@/lib/db";
+import type { OfferAutopilotConfig, SnapshotItem, SnapshotOffer } from "@/lib/automations/types";
+import { evaluationContext, snapshotItem, snapshotOffer } from "../../support/snapshot";
 
 const RULE = AUTOMATIONS.OFFER_AUTOPILOT.defaultConfig as OfferAutopilotConfig;
 const config = (over: Partial<OfferAutopilotConfig> = {}): OfferAutopilotConfig => ({ ...RULE, ...over });
@@ -66,60 +65,9 @@ describe("decideOffer", () => {
 
 // ───────────────────────────── The evaluator ─────────────────────────────
 
-const OFFER: SnapshotOffer = {
-  id: "off-1",
-  marketplace: "EBAY",
-  publicationMode: "API",
-  buyerName: "Dana",
-  amount: 9600,
-  originalPrice: 10_000,
-  status: "PENDING",
-  receivedAt: "2026-09-20T00:00:00.000Z",
-  expiresAt: null,
-  message: null,
-};
-
-function item(over: Partial<SnapshotItem> = {}, offers: SnapshotOffer[] = [OFFER]): SnapshotItem {
-  return {
-    id: "item-1",
-    sku: "CLV-1",
-    title: "Leica M6 rangefinder",
-    status: "LISTED",
-    brand: "Leica",
-    model: "M6",
-    categoryPath: [],
-    conditionGrade: "GOOD",
-    attributes: {},
-    listPrice: 10_000,
-    floorPrice: 8000,
-    estimatedValue: null,
-    soldPrice: null,
-    soldMarketplace: null,
-    quantity: 1,
-    notes: null,
-    listedAt: "2026-09-01T00:00:00.000Z",
-    soldAt: null,
-    createdAt: "2026-09-01T00:00:00.000Z",
-    updatedAt: "2026-09-20T00:00:00.000Z",
-    photos: [],
-    profile: null,
-    estimate: null,
-    drafts: [],
-    publications: [],
-    offers,
-    ...over,
-  };
-}
-
-function ctx(items: SnapshotItem[]): EvaluationContext {
-  const modes = Object.fromEntries(AUTOMATION_TYPES.map((t) => [t, "AUTO"])) as Record<AutomationType, AutomationMode>;
-  return {
-    now: new Date("2026-09-21T00:00:00.000Z"),
-    items,
-    preferences: { offersShipping: true, offersLocalPickup: true, defaultShippingNote: null, notifyOffers: true, notifyStale: true, notifyPublishing: true, city: null },
-    modes,
-  };
-}
+const OFFER = snapshotOffer();
+const item = (over: Partial<SnapshotItem> = {}, offers: SnapshotOffer[] = [OFFER]) => snapshotItem({ status: "LISTED", offers, ...over });
+const ctx = (items: SnapshotItem[]) => evaluationContext(items);
 
 describe("evaluateOfferAutopilot", () => {
   it("proposes one executable reply per pending offer on an API listing", () => {

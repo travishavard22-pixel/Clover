@@ -120,6 +120,30 @@ export const AUTOMATIONS: { [T in AutomationType]: AutomationDefinition<T> } = {
     ],
     alwaysOn: false,
   },
+  AUTO_PUBLISH: {
+    type: "AUTO_PUBLISH",
+    name: "Auto-publish",
+    description: "List an item as soon as the identification, the price and the copy are all strong enough to stand on their own.",
+    modeHelp: {
+      SUGGEST: "Ready items appear in Needs attention with the reasons they passed, one tap from listing.",
+      ASK: "You get a notification asking you to approve each listing before it goes out.",
+      AUTO: "Clover lists ready items itself — publishing to marketplaces with an API, and building the checklist for assisted ones.",
+    },
+    supportedModes: ["OFF", "SUGGEST", "ASK", "AUTO"],
+    // Suggestions only until the seller decides otherwise: this is the automation whose output
+    // strangers read under the seller's name.
+    defaultMode: "SUGGEST",
+    autoWarning: "On AUTO, Clover puts listings live without showing you the copy first. Every threshold below is a reason it will stop — loosen them and more goes out unreviewed.",
+    defaultConfig: { minIdentityConfidencePercent: 85, minPhotos: 3, requireMarketEvidence: true, requireSelfCheckPass: true, requireFloorPrice: true },
+    fields: [
+      { key: "minIdentityConfidencePercent", label: "Only when the identification is at least this confident", kind: "number", min: 50, max: 100, unit: "%" },
+      { key: "minPhotos", label: "Minimum photos", kind: "number", min: 1, max: 24 },
+      { key: "requireMarketEvidence", label: "Only when the price came from real comparable listings", kind: "boolean", help: "Off: an AI estimate with no comparables is enough to list. It is a guess." },
+      { key: "requireSelfCheckPass", label: "Only when the listing copy passed its claim check", kind: "boolean", help: "The writer checks every claim against the identification. A failure means a sentence in the description is not supported." },
+      { key: "requireFloorPrice", label: "Only when the item has a floor price", kind: "boolean", help: "The floor is what stops repricing and offer autopilot going too low." },
+    ],
+    alwaysOn: false,
+  },
   SOLD_SYNC: {
     type: "SOLD_SYNC",
     name: "Sold sync",
@@ -200,6 +224,13 @@ export const CONFIG_SCHEMAS: { [T in AutomationType]: z.ZodType<AutomationConfig
   TITLE_QUALITY: z.object({ requireBrand: bool, requireModel: bool, flagAllCaps: bool, flagFiller: bool }),
   OFFER_ALERT: z.object({ onlyAboveFloor: bool }),
   OFFER_AUTOPILOT: z.object({ acceptAtOrAbovePercent: int(50, 100), counterPercent: int(50, 100), declineBelowFloor: bool, maxAutoAcceptCents: int(0, 1_000_000) }),
+  AUTO_PUBLISH: z.object({
+    minIdentityConfidencePercent: z.number().int().min(50).max(100),
+    minPhotos: z.number().int().min(1).max(24),
+    requireMarketEvidence: bool,
+    requireSelfCheckPass: bool,
+    requireFloorPrice: bool,
+  }),
   SOLD_SYNC: z.object({ includeAssisted: bool }),
   DOUBLE_SELL_GUARD: z.object({ graceHours: int(0, 72) }),
   SHIPPING_PREP: z.object({ includeDimensions: bool }),

@@ -26,6 +26,8 @@ export type SnapshotDraft = {
   id: string;
   marketplace: Marketplace | null;
   title: string;
+  /** The listing writer's own claim check. "pass" means nothing in the copy is unsupported. */
+  selfCheckVerdict: "pass" | "revise" | "reject" | null;
   updatedAt: string;
 };
 
@@ -59,6 +61,8 @@ export type SnapshotOffer = {
 /** The subset of the identification artifact automations care about. */
 export type SnapshotProfile = {
   itemName: string | null;
+  /** 0–1, as the identification reported it. Null when no identification has been stored. */
+  identityConfidence: number | null;
   brand: string | null;
   model: string | null;
   dimensions: string | null;
@@ -94,10 +98,20 @@ export type SnapshotItem = {
   offers: SnapshotOffer[];
 };
 
+/** A marketplace connection, as the seller has it set up today. */
+export type SnapshotConnection = {
+  marketplace: Marketplace;
+  status: string;
+  /** "api", "assisted" or "demo" — what Clover can actually do on this marketplace. */
+  mode: string;
+};
+
 export type SnapshotPreferences = {
   offersShipping: boolean;
   offersLocalPickup: boolean;
   defaultShippingNote: string | null;
+  /** Where the seller lists by default, in their own order. */
+  defaultMarketplaces: Marketplace[];
   notifyOffers: boolean;
   notifyStale: boolean;
   notifyPublishing: boolean;
@@ -108,6 +122,7 @@ export type EvaluationContext = {
   now: Date;
   items: SnapshotItem[];
   preferences: SnapshotPreferences;
+  connections: SnapshotConnection[];
   /** Modes of every rule, so evaluators can adapt (e.g. the double-sell guard covers for a disabled sold sync). */
   modes: Record<AutomationType, AutomationMode>;
 };
@@ -121,6 +136,7 @@ export type ProposalAction =
   | { action: "fix_title"; itemId: string; draftId: string | null; marketplace: Marketplace | null; fromTitle: string; toTitle: string; issues: string[] }
   | { action: "set_shipping_note"; itemId: string; note: string; checklist: string[] }
   | { action: "respond_offer"; itemId: string; offerId: string; response: "accept" | "decline" | "counter"; counterCents: number | null; offerCents: number; askCents: number; reason: string }
+  | { action: "publish"; itemId: string; marketplaces: Marketplace[]; priceCents: number; reason: string }
   | { action: "notify"; itemId: string | null; href: string }
   | { action: "review"; itemId: string; href: string; checklist: string[] };
 
@@ -161,6 +177,18 @@ export type OfferAutopilotConfig = {
   declineBelowFloor: boolean;
   maxAutoAcceptCents: number;
 };
+/**
+ * Auto-publish. Every threshold is a reason to *stop*: an item is only listed when the
+ * identification, the price and the copy are all strong enough that a person reviewing it would
+ * have pressed the button unchanged.
+ */
+export type AutoPublishConfig = {
+  minIdentityConfidencePercent: number;
+  minPhotos: number;
+  requireMarketEvidence: boolean;
+  requireSelfCheckPass: boolean;
+  requireFloorPrice: boolean;
+};
 export type SoldSyncConfig = { includeAssisted: boolean };
 export type DoubleSellGuardConfig = { graceHours: number };
 export type ShippingPrepConfig = { includeDimensions: boolean };
@@ -173,6 +201,7 @@ export type AutomationConfigMap = {
   TITLE_QUALITY: TitleQualityConfig;
   OFFER_ALERT: OfferAlertConfig;
   OFFER_AUTOPILOT: OfferAutopilotConfig;
+  AUTO_PUBLISH: AutoPublishConfig;
   SOLD_SYNC: SoldSyncConfig;
   DOUBLE_SELL_GUARD: DoubleSellGuardConfig;
   SHIPPING_PREP: ShippingPrepConfig;
@@ -214,6 +243,7 @@ export const AUTOMATION_TYPES: AutomationType[] = [
   "TITLE_QUALITY",
   "OFFER_ALERT",
   "OFFER_AUTOPILOT",
+  "AUTO_PUBLISH",
   "SOLD_SYNC",
   "DOUBLE_SELL_GUARD",
   "SHIPPING_PREP",

@@ -39,9 +39,26 @@ Both are clamped to 5–1440 minutes. Run as many workers as you like: the due c
 advisory lock, so exactly one of them enqueues, and work that is still queued or running is never
 stacked on.
 
+A third trigger is event-driven rather than scheduled: when an item finishes analysis, the worker
+queues a sweep for that seller a minute later, so auto-publish lists it promptly instead of waiting
+for the hourly run. A sweep already waiting for that seller is reused, so importing fifty items
+queues one sweep, not fifty. Sellers with auto-publish off are skipped entirely.
+
 This is what makes an unattended deployment actually unattended. Before it, both jobs were enqueued
 only by a button in the app or by a cron the deployment may never have configured — a server that
 looked healthy while no offer ever arrived on its own.
+
+### What runs unattended, and what never does
+
+Two automations act on the seller's behalf rather than suggesting: **offer autopilot** answers
+buyer offers, and **auto-publish** puts listings live. Both default to suggestions only and must be
+switched to AUTO deliberately. Both enforce their own limits a second time at apply time, reading
+fresh rows rather than trusting the proposal — an offer that changed, a price that moved or an item
+that already sold fails with a 409 instead of transacting on stale numbers.
+
+Neither one can act where Clover has no API. On an assisted marketplace the reply or the listing is
+prepared and handed to the seller as a checklist, and the UI says so rather than implying it went
+out.
 
 ## Key rotation
 
